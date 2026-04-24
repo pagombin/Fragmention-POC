@@ -23,3 +23,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - cobra CLI: `server`, `version`, `config-validate`, `purge` (stub).
 - Makefile, golangci-lint config, editorconfig, config examples, initial
   documentation skeleton.
+- MongoDB v2 driver wrapper (`internal/mongo`): connection, version gate
+  (≥5.0), topology detection for standalone / replica set / (flagged)
+  sharded, `collStats`/`dbStats` helpers, collection-type classification
+  (regular / capped / timeseries / clustered / view / system).
+- Prometheus registry (`internal/metrics`) with build and server identity
+  gauges plus collector counters and latest-value gauges per scope.
+- Samples and snapshots repositories under `internal/storage` with
+  transactional batch writes and range queries.
+- Supervisor (`internal/supervisor`) coordinating long-lived services via
+  `errgroup` with clean cancellation propagation.
+- Collector (`internal/collector`) with adaptive polling (idle/active),
+  exponential backoff on transient errors, snapshot tagging, and event-log
+  integration.
+- Cluster introspection endpoints:
+  `GET /api/v1/cluster/{topology,preflight,databases,databases/{db}/collections,
+  databases/{db}/collections/{coll}/stats}` plus Prometheus at `/metrics`.
+- Integration test suite (Docker-gated) against `mongo:7.0`.
