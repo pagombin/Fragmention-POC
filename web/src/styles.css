@@ -1,0 +1,29 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root { color-scheme: light dark; }
+
+html.dark body { background: #0b1020; color: #e5e7eb; }
+html:not(.dark) body { background: #f8fafc; color: #0b1020; }
+
+body {
+  font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, sans-serif;
+  min-height: 100vh;
+}
+
+/* Utility: shrinkable mono for dense tables */
+.mono-sm { font-family: ui-monospace, monospace; font-size: 11px; }
+
+/* Fragmentation color bands used across multiple views. */
+.frag-low    { background: rgba( 34,197, 94, 0.15); color: #16a34a; }
+.frag-med    { background: rgba(234,179,  8, 0.18); color: #ca8a04; }
+.frag-high   { background: rgba(239, 68, 68, 0.18); color: #dc2626; }
+
+html.dark .frag-low   { color: #4ade80; }
+html.dark .frag-med   { color: #facc15; }
+html.dark .frag-high  { color: #f87171; }
+
+/* Scrollbar polish */
+html.dark *::-webkit-scrollbar { width: 10px; height: 10px; }
+html.dark *::-webkit-scrollbar-thumb { background: #1f2937; border-radius: 6px; }

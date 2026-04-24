@@ -42,11 +42,11 @@ test-integration:
 	$(GO) test -tags=integration -race -count=1 -timeout=10m ./test/integration/...
 
 .PHONY: build
-build: $(BIN_DIR)
+build: frontend-embed $(BIN_DIR)
 	$(GO) build -ldflags "$(LDFLAGS)" -o $(BIN) ./cmd/mfpoc
 
 .PHONY: build-linux-amd64
-build-linux-amd64: $(BIN_DIR)
+build-linux-amd64: frontend-embed $(BIN_DIR)
 	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
 	  $(GO) build -ldflags "$(LDFLAGS)" -o $(BIN_DIR)/mfpoc-linux-amd64 ./cmd/mfpoc
 
@@ -56,7 +56,9 @@ run: build
 
 .PHONY: clean
 clean:
-	rm -rf $(BIN_DIR) coverage.out coverage.html
+	rm -rf $(BIN_DIR) coverage.out coverage.html internal/api/webui/dist
+	mkdir -p internal/api/webui/dist
+	printf '<!doctype html><meta charset=utf-8><title>mfpoc</title><p>SPA not built.' > internal/api/webui/dist/index.html
 
 .PHONY: frontend-dev
 frontend-dev:
@@ -65,6 +67,16 @@ frontend-dev:
 .PHONY: frontend-build
 frontend-build:
 	cd web && npm install && npm run build
+
+.PHONY: frontend-embed
+frontend-embed:
+	@if [ ! -f web/dist/index.html ]; then \
+		echo "building frontend..."; \
+		cd web && npm install --silent && npm run build; cd ..; \
+	fi
+	@rm -rf internal/api/webui/dist
+	@mkdir -p internal/api/webui/dist
+	@cp -r web/dist/. internal/api/webui/dist/
 
 .PHONY: docker
 docker:

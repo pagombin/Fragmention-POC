@@ -165,6 +165,30 @@ go. `make test` runs unit tests only (no Docker required); operators
 run `make test-integration` on a machine with a working Docker
 daemon. The spec's acceptance criteria #2/#3/#13 are verified there.
 
+### D-011: Embedded SPA bundle is committed
+
+`internal/api/webui/dist/` is committed to git so `go build ./...`
+works from a fresh clone without requiring npm. `make build` still
+rebuilds the frontend and refreshes the embedded dir; operators who
+never touch the frontend can ignore the churn. Trade-off: diffs on
+JS chunk hashes show up on PRs. Given this is a single-operator POC,
+the reviewer ergonomics outweigh the noise.
+
+### D-012: Global bearer token injection from Zustand store
+
+The SPA stores its bearer token in localStorage (via Zustand's
+persist middleware) and the fetch wrapper reads it on every call.
+This keeps handlers free of explicit token threading and the token
+survives reloads. Logout / rotation is a single `setToken(null)`.
+
+### D-013: Dev-mode Vite proxy vs. embedded build
+
+During `make frontend-dev`, Vite serves the SPA on :5173 and proxies
+`/api`, `/metrics`, `/health`, `/ready` to the Go server on :8080.
+Production builds embed the dist and serve everything same-origin so
+CORS never comes into play. The SPA uses relative URLs so there is
+one code path for both modes.
+
 ## Roadmap
 
 The 20 development phases from § 19 of the spec drive implementation order.

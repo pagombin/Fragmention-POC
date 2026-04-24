@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -14,6 +15,7 @@ import (
 	"github.com/pagombin/fragmention-poc/internal/api/handlers"
 	"github.com/pagombin/fragmention-poc/internal/api/middleware"
 	ws "github.com/pagombin/fragmention-poc/internal/api/websocket"
+	"github.com/pagombin/fragmention-poc/internal/api/webui"
 	"github.com/pagombin/fragmention-poc/internal/collector"
 	"github.com/pagombin/fragmention-poc/internal/compact"
 	"github.com/pagombin/fragmention-poc/internal/config"
@@ -123,6 +125,20 @@ func NewRouter(d Deps) http.Handler {
 		})
 	}
 	registerStreams(r, d)
+	// SPA catch-all. Register AFTER the API routes so anything under /api,
+	// /metrics, /health, /ready is handled by its own handler. chi's
+	// NotFound lets us keep API 404s returning JSON while serving index.html
+	// for unknown non-API paths so client-side routing works.
+	r.NotFound(func(w http.ResponseWriter, rq *http.Request) {
+		if strings.HasPrefix(rq.URL.Path, "/api/") ||
+			strings.HasPrefix(rq.URL.Path, "/metrics") ||
+			strings.HasPrefix(rq.URL.Path, "/health") ||
+			strings.HasPrefix(rq.URL.Path, "/ready") {
+			apiresp.WriteError(w, http.StatusNotFound, "not_found", "route not found", nil)
+			return
+		}
+		webui.Handler().ServeHTTP(w, rq)
+	})
 	return r
 }
 
