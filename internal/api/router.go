@@ -14,17 +14,19 @@ import (
 	"github.com/pagombin/fragmention-poc/internal/api/handlers"
 	"github.com/pagombin/fragmention-poc/internal/api/middleware"
 	"github.com/pagombin/fragmention-poc/internal/collector"
+	"github.com/pagombin/fragmention-poc/internal/compact"
 	"github.com/pagombin/fragmention-poc/internal/config"
+	"github.com/pagombin/fragmention-poc/internal/deleter"
+	"github.com/pagombin/fragmention-poc/internal/loader"
 	"github.com/pagombin/fragmention-poc/internal/logging"
 	"github.com/pagombin/fragmention-poc/internal/metrics"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
 	"github.com/pagombin/fragmention-poc/internal/storage"
 	"github.com/pagombin/fragmention-poc/internal/version"
+	"github.com/pagombin/fragmention-poc/internal/workload"
 )
 
 // Deps aggregates the runtime dependencies needed by the HTTP handlers.
-// Additional services (loader, deleter, etc.) will be added in later phases;
-// the struct is intentionally extensible so the router signature stays stable.
 type Deps struct {
 	Cfg       *config.Config
 	Logger    zerolog.Logger
@@ -32,10 +34,10 @@ type Deps struct {
 	Readyz    func(context.Context) error
 	Mongo     *mongoClient.Client
 	Collector *collector.Collector
-	Loader    any // *loader.Service; untyped here to avoid import coupling
-	Deleter   any // *deleter.Service
-	Compact   any // *compact.Service
-	Workload  any // *workload.Service
+	Loader    *loader.Service
+	Deleter   *deleter.Service
+	Compact   *compact.Service
+	Workload  *workload.Service
 }
 
 // NewRouter constructs the Phase-1 API surface: uniform envelope, auth,
@@ -88,6 +90,32 @@ func NewRouter(d Deps) http.Handler {
 	registerMetrics(r)
 	if d.Mongo != nil {
 		handlers.RegisterCluster(r, handlers.ClusterDeps{Client: d.Mongo, Collector: d.Collector})
+	}
+	if d.Store != nil {
+		ops := storage.NewOperations(d.Store)
+		snaps := storage.NewSnapshots(d.Store)
+		samples := storage.NewSamples(d.Store)
+		events := storage.NewEvents(d.Store)
+		runsRepo := storage.NewRuns(d.Store)
+
+		if d.Loader != nil {
+			handlers.RegisterLoader(r, handlers.LoaderDeps{Service: d.Loader, Ops: ops})
+		}
+		if d.Deleter != nil {
+			handlers.RegisterDeleter(r, handlers.DeleterDeps{Service: d.Deleter, Ops: ops})
+		}
+		if d.Compact != nil {
+			handlers.RegisterCompact(r, handlers.CompactDeps{Service: d.Compact, Ops: ops})
+		}
+		if d.Workload != nil {
+			handlers.RegisterWorkload(r, handlers.WorkloadDeps{Service: d.Workload, Ops: ops})
+		}
+		if d.Collector != nil {
+			handlers.RegisterSnapshots(r, handlers.SnapshotsDeps{Collector: d.Collector, Snaps: snaps})
+		}
+		handlers.RegisterRuns(r, handlers.RunsDeps{
+			Runs: runsRepo, Snaps: snaps, Samples: samples, Events: events,
+		})
 	}
 	return r
 }

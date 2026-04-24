@@ -93,3 +93,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
     (`workload_ops_total`, `workload_errors_total`) with bounded
     cardinality labels.
   - Service manager for Start/Stop/Get/ListActive.
+- Full REST API surface under `/api/v1/`:
+  - `loader/` — start, pause, resume, stop, adjust (PATCH params),
+    get, list active.
+  - `deleter/` — preview → start (token), pause, resume, stop, get,
+    list active.
+  - `compact/` — preview (planned execution order), start, cancel,
+    get (with current step), list active.
+  - `workload/` — start, stop, live rate adjust (PATCH), get, list.
+  - `snapshots/` — create, list, get, compare (a vs b diff).
+  - `runs/` — create, list, get, cancel, run-scoped snapshots,
+    run-scoped metrics query.
+  - `events/` — list with category + run_id filters.
+- Runs repository (`internal/storage/runs.go`) with lifecycle status
+  transitions (created → running → completed/cancelled/failed).
