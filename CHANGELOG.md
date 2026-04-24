@@ -71,3 +71,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - Scope-overlap conflict detection shared with the loader (§ 21.3).
   - Prometheus metrics: `deleter_docs_deleted_total`,
     `deleter_batch_duration_seconds`, `deleter_errors_total`.
+- Compact orchestrator (`internal/compact`) implementing spec § 5.4:
+  - Detects topology and chooses single-node or rolling mode.
+  - Rolling: secondaries first, then `replSetStepDown` + wait-for-new-
+    primary + compact former primary.
+  - Preview surfaces execution order, warnings (excess lag, missing
+    secondary), and estimated duration.
+  - Scope levels: cluster / databases / collections. System databases
+    (admin/config/local) are never touched; only `regular` collections
+    are compacted (capped/timeseries/view/system are excluded).
+  - Optional post-compact `validate` when configured.
+  - Auto-snapshots `pre_compact` and `post_compact` via the collector.
+  - Prometheus metrics: `compact_started_total`, `compact_completed_total`
+    (labelled by outcome), `compact_duration_seconds`,
+    `compact_reclaim_bytes_total`, `compact_stepdowns_total`.
