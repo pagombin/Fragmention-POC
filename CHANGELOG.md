@@ -4,7 +4,12 @@ All notable changes to this project are documented here.
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/)
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
-## [Unreleased]
+## [0.1.0] - 2026-04-24
+
+First release covering spec Phases 1–20. Spec § 17 acceptance-criteria
+walkthrough lives at [`docs/ACCEPTANCE.md`](docs/ACCEPTANCE.md).
+Items 12 and 13 require a live droplet (and SRV target) and are the
+deliberate reviewer checkpoint per the project brief.
 
 ### Added
 - Project scaffold, Go module, directory layout per spec § 14.
@@ -152,3 +157,26 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `GET /api/v1/runs/{id}/report.csv`,
   `GET /api/v1/snapshots/compare/report`,
   `GET /api/v1/snapshots/compare/report.csv`.
+- E2E smoke test (`test/e2e/smoke_test.go`) drives the full
+  load → preview/delete → snapshot → report flow against a real
+  `mongo:7.0` container via testcontainers-go.
+- Multi-stage Dockerfile (distroless nonroot) and docker-compose
+  dev stack (3-node RS + app). `make docker-up`/`docker-down` wrap
+  the lifecycle.
+- Droplet deployment artifacts (`deploy/droplet/`): idempotent
+  `install.sh`, hardened `mfpoc.service` (NoNewPrivileges,
+  ProtectSystem=strict, ReadWritePaths, CapabilityBoundingSet=),
+  `config.droplet.yaml` template with self-signed TLS defaults,
+  walkthrough README.
+- Full documentation set (API, CONFIGURATION, OPERATIONS,
+  METHODOLOGY, LIMITATIONS, GLOSSARY, TROUBLESHOOTING, ACCEPTANCE)
+  plus `FUTURE.md` backlog.
+
+### Explicit limitations (see LIMITATIONS.md / FUTURE.md)
+- Retention janitor goroutine not wired (config honored by schema).
+- `mfpoc purge` is CLI-stub only.
+- OpenAPI 3.0 export not generated; API.md is canonical.
+- Loader update-mix phase deferred.
+- WebSocket subscription in the SPA (today: 2s polling via TanStack
+  Query). Hubs + frames are live server-side; hook shape supports
+  a drop-in replacement.
