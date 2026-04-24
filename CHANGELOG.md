@@ -120,3 +120,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   lifecycle frames (loader_started, deleter_paused, compact_stopped,
   workload_completed, etc.) without importing the websocket package.
   An adapter in the server wires the seam into the ops hub.
+- Frontend SPA (React 18 + TypeScript + Tailwind + TanStack Query +
+  Zustand, embedded via `go:embed`). Covers every spec § 5.7 view:
+  Cluster Overview, Data Browser, Operations Console (Load / Delete /
+  Compact / Workload / Snapshots), Runs, Run Detail, New Run Wizard,
+  Compare Runs, Initial Sync Companion, Event Log, Settings.
+- Reusable `TargetSelector` component and shared selection store so
+  users can pick collections once in the Data Browser and flow
+  through every Operations Console tab.
+- Live Ops Panel on the right-hand side shows every in-flight
+  loader/deleter/compact/workload with working pause/resume/stop/
+  cancel buttons. Refreshes every 2 seconds.
+- Keyboard shortcuts: `g c/d/o/r/n/m/i/e/s` for navigation, `?` for
+  the cheat sheet.
+- Delete confirmation flow enforces typed `DELETE` when the preview
+  flags `requires_typed_confirmation` and blocks execution when
+  `max_ratio_breached`.
+- Initial Sync Companion: take pre-sync snapshot → perform external
+  initial sync → take post-sync snapshot → per-collection reclaim
+  diff rendered inline with fragmentation before→after.
+- Run Detail + Compare Runs views render fragmentation-over-time
+  charts via recharts.

@@ -3,7 +3,13 @@ import { Route, Routes, useNavigate } from 'react-router-dom';
 import { ClusterOverview } from './views/ClusterOverview';
 import { DataBrowser } from './views/DataBrowser';
 import { OperationsConsole } from './views/OperationsConsole';
-import { Placeholder } from './views/Placeholder';
+import { RunsList } from './views/RunsList';
+import { RunDetail } from './views/RunDetail';
+import { NewRunWizard } from './views/NewRunWizard';
+import { CompareRuns } from './views/CompareRuns';
+import { InitialSyncCompanion } from './views/InitialSyncCompanion';
+import { EventLog } from './views/EventLog';
+import { Settings } from './views/Settings';
 import { TopBar } from './components/layout/TopBar';
 import { Sidebar } from './components/layout/Sidebar';
 import { LiveOpsPanel } from './components/layout/LiveOpsPanel';
@@ -55,13 +61,13 @@ export default function App() {
             <Route path="/" element={<ClusterOverview />} />
             <Route path="/data" element={<DataBrowser />} />
             <Route path="/ops" element={<OperationsConsole />} />
-            <Route path="/runs" element={<Placeholder title="Runs" body="Coming in Phase 14." />} />
-            <Route path="/runs/:id" element={<Placeholder title="Run Detail" body="Coming in Phase 14." />} />
-            <Route path="/wizard" element={<Placeholder title="New Run Wizard" body="Coming in Phase 14." />} />
-            <Route path="/compare" element={<Placeholder title="Compare Runs" body="Coming in Phase 14." />} />
-            <Route path="/initial-sync" element={<Placeholder title="Initial Sync Companion" body="Coming in Phase 14." />} />
-            <Route path="/events" element={<Placeholder title="Event Log" body="Coming in Phase 14." />} />
-            <Route path="/settings" element={<Placeholder title="Settings" body="Coming in Phase 14." />} />
+            <Route path="/runs" element={<RunsList />} />
+            <Route path="/runs/:id" element={<RunDetail />} />
+            <Route path="/wizard" element={<NewRunWizard />} />
+            <Route path="/compare" element={<CompareRuns />} />
+            <Route path="/initial-sync" element={<InitialSyncCompanion />} />
+            <Route path="/events" element={<EventLog />} />
+            <Route path="/settings" element={<Settings />} />
           </Routes>
         </main>
         <LiveOpsPanel />
