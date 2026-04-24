@@ -141,6 +141,30 @@ the resolution.
 Per spec §6. If the operator explicitly sets `mongo.connect_timeout`
 below or above 10s we leave it alone; only the default is bumped.
 
+### D-008: Envelope helpers live in `internal/api/apiresp`
+
+The chi-based router (`internal/api`) needs to import the handler
+subpackage; the handler subpackage needs the envelope writers. Putting
+the writers in `api` would create an import cycle. They live in
+`internal/api/apiresp` and are shared by both.
+
+### D-009: Degraded mode when Mongo is unreachable at startup
+
+Startup does not abort if the initial `mongo.Connect` fails. The app
+continues to serve `/health`, `/api/v1/version`, and `/metrics` so
+operators can debug. `/ready` returns 503 until the connection
+succeeds. Per-phase services (collector, loader, deleter, compact)
+are not registered with the supervisor when Mongo is absent, so no
+background work is attempted. A future enhancement will reconnect
+when Mongo returns; Phase 2 intentionally keeps the scope minimal.
+
+### D-010: Integration tests require Docker but are build-tagged
+
+`test/integration/` uses `//go:build integration` and testcontainers-
+go. `make test` runs unit tests only (no Docker required); operators
+run `make test-integration` on a machine with a working Docker
+daemon. The spec's acceptance criteria #2/#3/#13 are verified there.
+
 ## Roadmap
 
 The 20 development phases from § 19 of the spec drive implementation order.
