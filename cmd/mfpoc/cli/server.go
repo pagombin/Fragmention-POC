@@ -14,6 +14,7 @@ import (
 	"github.com/pagombin/fragmention-poc/internal/api"
 	"github.com/pagombin/fragmention-poc/internal/collector"
 	"github.com/pagombin/fragmention-poc/internal/config"
+	"github.com/pagombin/fragmention-poc/internal/loader"
 	"github.com/pagombin/fragmention-poc/internal/logging"
 	"github.com/pagombin/fragmention-poc/internal/metrics"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
@@ -82,6 +83,7 @@ func newServerCmd() *cobra.Command {
 
 			sup := supervisor.New(logger)
 			var col *collector.Collector
+			var loaderSvc *loader.Service
 			if mc != nil {
 				col = collector.New(collector.Config{
 					IdleInterval:   cfg.Collector.IdleInterval,
@@ -90,6 +92,28 @@ func newServerCmd() *cobra.Command {
 					BackoffMax:     cfg.Collector.BackoffMax,
 				}, mc, storage.NewSamples(store), storage.NewSnapshots(store), storage.NewEvents(store), logger)
 				sup.Register(col)
+
+				// Startup orphan recovery per spec § 21.2: transition any
+				// non-terminal operations from a previous session to
+				// "interrupted" so the UI can surface them.
+				orphans, orphanErr := storage.NewOperations(store).RecoverOrphans(ctx, "process restart")
+				if orphanErr != nil {
+					logger.Warn().Err(orphanErr).Msg("orphan recovery failed")
+				} else if len(orphans) > 0 {
+					logger.Warn().Int("count", len(orphans)).Msg("recovered orphan operations")
+				}
+
+				svc, svcErr := loader.NewService(loader.Deps{
+					Logger:    logger,
+					Mongo:     mc,
+					Ops:       storage.NewOperations(store),
+					Events:    storage.NewEvents(store),
+					Collector: col,
+				})
+				if svcErr != nil {
+					return fmt.Errorf("init loader service: %w", svcErr)
+				}
+				loaderSvc = svc
 			}
 
 			deps := api.Deps{
@@ -98,6 +122,7 @@ func newServerCmd() *cobra.Command {
 				Store:     store,
 				Mongo:     mc,
 				Collector: col,
+				Loader:    loaderSvc,
 				Readyz: func(ctx context.Context) error {
 					if err := store.Ping(ctx); err != nil {
 						return fmt.Errorf("storage: %w", err)

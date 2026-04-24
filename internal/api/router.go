@@ -32,6 +32,7 @@ type Deps struct {
 	Readyz    func(context.Context) error
 	Mongo     *mongoClient.Client
 	Collector *collector.Collector
+	Loader    any // *loader.Service; untyped here to avoid import coupling
 }
 
 // NewRouter constructs the Phase-1 API surface: uniform envelope, auth,

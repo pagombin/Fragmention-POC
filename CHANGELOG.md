@@ -40,3 +40,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `GET /api/v1/cluster/{topology,preflight,databases,databases/{db}/collections,
   databases/{db}/collections/{coll}/stats}` plus Prometheus at `/metrics`.
 - Integration test suite (Docker-gated) against `mongo:7.0`.
+- Operations repository (`internal/storage/operations.go`) with the full
+  spec § 5.8 lifecycle state machine, atomic progress upsert, and
+  startup orphan recovery (§ 21.2).
+- Six-template synthetic generator (`internal/generator`) with a weighted
+  registry, per-template `IndexSpecs` and `IDKind`, and seeded determinism.
+- Loader service (`internal/loader`) implementing spec § 5.1: worker-pool
+  insertion with InsertMany+ordered:false, live parameter adjustment,
+  pause/resume/stop lifecycle, rate limiting via `x/time/rate`, pre-flight
+  storage check with configurable headroom, resume-from-persisted-progress,
+  Prometheus metrics (`loader_docs_inserted_total`,
+  `loader_bytes_inserted_total`, `loader_insert_duration_seconds`,
+  `loader_errors_total`, `loader_active_workers`), event-log integration,
+  and a Service manager that enforces scope-overlap conflict detection
+  (§ 21.3).
+- Startup orphan recovery automatically transitions interrupted operations
+  to `interrupted` so the UI can offer resume/abort/retry (§ 21.2).
