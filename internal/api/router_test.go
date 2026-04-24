@@ -12,6 +12,7 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/stretchr/testify/require"
 
+	"github.com/pagombin/fragmention-poc/internal/api/apiresp"
 	"github.com/pagombin/fragmention-poc/internal/config"
 	"github.com/pagombin/fragmention-poc/internal/storage"
 )
@@ -41,7 +42,7 @@ func TestRouter_HealthPublic(t *testing.T) {
 	r.ServeHTTP(rec, req)
 	require.Equal(t, http.StatusOK, rec.Code)
 
-	var env Envelope
+	var env apiresp.Envelope
 	require.NoError(t, json.Unmarshal(rec.Body.Bytes(), &env))
 	require.Nil(t, env.Error)
 }

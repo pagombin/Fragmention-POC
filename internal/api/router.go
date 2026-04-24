@@ -7,11 +7,17 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	chimw "github.com/go-chi/chi/v5/middleware"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 
+	"github.com/pagombin/fragmention-poc/internal/api/apiresp"
+	"github.com/pagombin/fragmention-poc/internal/api/handlers"
 	"github.com/pagombin/fragmention-poc/internal/api/middleware"
+	"github.com/pagombin/fragmention-poc/internal/collector"
 	"github.com/pagombin/fragmention-poc/internal/config"
 	"github.com/pagombin/fragmention-poc/internal/logging"
+	"github.com/pagombin/fragmention-poc/internal/metrics"
+	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
 	"github.com/pagombin/fragmention-poc/internal/storage"
 	"github.com/pagombin/fragmention-poc/internal/version"
 )
@@ -20,10 +26,12 @@ import (
 // Additional services (loader, deleter, etc.) will be added in later phases;
 // the struct is intentionally extensible so the router signature stays stable.
 type Deps struct {
-	Cfg     *config.Config
-	Logger  zerolog.Logger
-	Store   *storage.Store
-	Readyz  func(context.Context) error
+	Cfg       *config.Config
+	Logger    zerolog.Logger
+	Store     *storage.Store
+	Readyz    func(context.Context) error
+	Mongo     *mongoClient.Client
+	Collector *collector.Collector
 }
 
 // NewRouter constructs the Phase-1 API surface: uniform envelope, auth,
@@ -73,7 +81,15 @@ func NewRouter(d Deps) http.Handler {
 
 	registerHealth(r, d)
 	registerAdmin(r, d)
+	registerMetrics(r)
+	if d.Mongo != nil {
+		handlers.RegisterCluster(r, handlers.ClusterDeps{Client: d.Mongo, Collector: d.Collector})
+	}
 	return r
+}
+
+func registerMetrics(r chi.Router) {
+	r.Handle("/metrics", promhttp.HandlerFor(metrics.Registry, promhttp.HandlerOpts{}))
 }
 
 func registerHealth(r chi.Router, d Deps) {
@@ -82,12 +98,12 @@ func registerHealth(r chi.Router, d Deps) {
 	r.Get("/ready", readyHandler(d))
 	r.Get("/api/v1/ready", readyHandler(d))
 	r.Get("/api/v1/version", func(w http.ResponseWriter, _ *http.Request) {
-		WriteJSON(w, http.StatusOK, version.Get())
+		apiresp.WriteJSON(w, http.StatusOK, version.Get())
 	})
 }
 
 func healthHandler(w http.ResponseWriter, _ *http.Request) {
-	WriteJSON(w, http.StatusOK, map[string]any{"status": "ok"})
+	apiresp.WriteJSON(w, http.StatusOK, map[string]any{"status": "ok"})
 }
 
 func readyHandler(d Deps) http.HandlerFunc {
@@ -96,11 +112,11 @@ func readyHandler(d Deps) http.HandlerFunc {
 			ctx, cancel := context.WithTimeout(r.Context(), 3*time.Second)
 			defer cancel()
 			if err := d.Readyz(ctx); err != nil {
-				WriteError(w, http.StatusServiceUnavailable, "not_ready", err.Error(), nil)
+				apiresp.WriteError(w, http.StatusServiceUnavailable, "not_ready", err.Error(), nil)
 				return
 			}
 		}
-		WriteJSON(w, http.StatusOK, map[string]any{"status": "ready"})
+		apiresp.WriteJSON(w, http.StatusOK, map[string]any{"status": "ready"})
 	}
 }
 
@@ -110,16 +126,16 @@ func registerAdmin(r chi.Router, _ Deps) {
 		var body struct {
 			Level string `json:"level"`
 		}
-		if err := decodeJSON(r, &body); err != nil {
-			WriteError(w, http.StatusBadRequest, "invalid_body", err.Error(), nil)
+		if err := apiresp.DecodeJSON(r, &body); err != nil {
+			apiresp.WriteError(w, http.StatusBadRequest, "invalid_body", err.Error(), nil)
 			return
 		}
 		prev, err := logging.SetLevel(body.Level)
 		if err != nil {
-			WriteError(w, http.StatusBadRequest, "invalid_level", err.Error(), nil)
+			apiresp.WriteError(w, http.StatusBadRequest, "invalid_level", err.Error(), nil)
 			return
 		}
-		WriteJSON(w, http.StatusOK, map[string]any{
+		apiresp.WriteJSON(w, http.StatusOK, map[string]any{
 			"previous": prev,
 			"current":  logging.Level(),
 		})
