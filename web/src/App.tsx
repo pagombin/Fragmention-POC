@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { Route, Routes, useNavigate } from 'react-router-dom';
 import { ClusterOverview } from './views/ClusterOverview';
 import { DataBrowser } from './views/DataBrowser';
+import { OperationsConsole } from './views/OperationsConsole';
 import { Placeholder } from './views/Placeholder';
 import { TopBar } from './components/layout/TopBar';
 import { Sidebar } from './components/layout/Sidebar';
@@ -53,7 +54,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<ClusterOverview />} />
             <Route path="/data" element={<DataBrowser />} />
-            <Route path="/ops" element={<Placeholder title="Operations Console" body="Coming in Phases 11–13." />} />
+            <Route path="/ops" element={<OperationsConsole />} />
             <Route path="/runs" element={<Placeholder title="Runs" body="Coming in Phase 14." />} />
             <Route path="/runs/:id" element={<Placeholder title="Run Detail" body="Coming in Phase 14." />} />
             <Route path="/wizard" element={<Placeholder title="New Run Wizard" body="Coming in Phase 14." />} />
