@@ -85,3 +85,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - Prometheus metrics: `compact_started_total`, `compact_completed_total`
     (labelled by outcome), `compact_duration_seconds`,
     `compact_reclaim_bytes_total`, `compact_stepdowns_total`.
+- Workload generator (`internal/workload`) implementing spec § 5.5:
+  - Weighted read/write/aggregate mix, configurable per run.
+  - Live-adjustable rate via `x/time/rate` token bucket; SetParams
+    rebuilds the limiter atomically.
+  - Prometheus histograms (`workload_op_duration_seconds`), counters
+    (`workload_ops_total`, `workload_errors_total`) with bounded
+    cardinality labels.
+  - Service manager for Start/Stop/Get/ListActive.

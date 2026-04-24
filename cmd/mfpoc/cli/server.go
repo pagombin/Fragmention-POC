@@ -23,6 +23,7 @@ import (
 	"github.com/pagombin/fragmention-poc/internal/storage"
 	"github.com/pagombin/fragmention-poc/internal/supervisor"
 	"github.com/pagombin/fragmention-poc/internal/version"
+	"github.com/pagombin/fragmention-poc/internal/workload"
 )
 
 func newServerCmd() *cobra.Command {
@@ -88,6 +89,7 @@ func newServerCmd() *cobra.Command {
 			var loaderSvc *loader.Service
 			var deleterSvc *deleter.Service
 			var compactSvc *compact.Service
+			var workloadSvc *workload.Service
 			if mc != nil {
 				col = collector.New(collector.Config{
 					IdleInterval:   cfg.Collector.IdleInterval,
@@ -147,6 +149,17 @@ func newServerCmd() *cobra.Command {
 					return fmt.Errorf("init compact service: %w", compErr)
 				}
 				compactSvc = compSvc
+
+				wlSvc, wlErr := workload.NewService(workload.Deps{
+					Logger: logger,
+					Mongo:  mc,
+					Ops:    storage.NewOperations(store),
+					Events: storage.NewEvents(store),
+				})
+				if wlErr != nil {
+					return fmt.Errorf("init workload service: %w", wlErr)
+				}
+				workloadSvc = wlSvc
 			}
 
 			deps := api.Deps{
@@ -158,6 +171,7 @@ func newServerCmd() *cobra.Command {
 				Loader:    loaderSvc,
 				Deleter:   deleterSvc,
 				Compact:   compactSvc,
+				Workload:  workloadSvc,
 				Readyz: func(ctx context.Context) error {
 					if err := store.Ping(ctx); err != nil {
 						return fmt.Errorf("storage: %w", err)

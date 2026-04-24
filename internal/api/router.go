@@ -35,6 +35,7 @@ type Deps struct {
 	Loader    any // *loader.Service; untyped here to avoid import coupling
 	Deleter   any // *deleter.Service
 	Compact   any // *compact.Service
+	Workload  any // *workload.Service
 }
 
 // NewRouter constructs the Phase-1 API surface: uniform envelope, auth,
