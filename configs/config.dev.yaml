@@ -1,0 +1,23 @@
+# Local development config. Targets the docker-compose 3-node replica set.
+# No TLS, loopback bind, auth disabled - LOCAL USE ONLY.
+
+server:
+  listen: "127.0.0.1:8080"
+  shutdown_timeout: 10s
+
+mongo:
+  uri: "mongodb://localhost:27017/?replicaSet=rs0&directConnection=false"
+  connect_timeout: 10s
+
+storage:
+  path: "./data/mfpoc-dev.db"
+
+logging:
+  level: debug
+  format: console
+
+auth:
+  enabled: false
+
+poc:
+  database_prefix: "poc_db_"

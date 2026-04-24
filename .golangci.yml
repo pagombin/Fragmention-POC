@@ -1,0 +1,53 @@
+version: "2"
+
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  default: none
+  enable:
+    - errcheck
+    - govet
+    - ineffassign
+    - staticcheck
+    - unused
+    - gosec
+    - revive
+    - misspell
+    - gocyclo
+
+  settings:
+    gocyclo:
+      min-complexity: 20
+    gosec:
+      excludes:
+        - G104  # audited via errcheck
+        - G304  # file-path-from-variable is intentional for config file loading
+        - G404  # math/rand is fine for synthetic data generation
+    revive:
+      rules:
+        - name: exported
+          disabled: false
+        - name: var-naming
+        - name: package-comments
+          disabled: true
+        - name: indent-error-flow
+        - name: if-return
+        - name: error-return
+        - name: error-strings
+        - name: error-naming
+        - name: unexported-return
+        - name: unreachable-code
+
+  exclusions:
+    rules:
+      - path: _test\.go
+        linters:
+          - gosec
+          - gocyclo
+          - revive
+
+issues:
+  max-issues-per-linter: 0
+  max-same-issues: 0

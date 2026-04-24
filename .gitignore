@@ -1,0 +1,39 @@
+# Binaries
+/mfpoc
+/mfpoc-*
+/bin/
+/dist/
+
+# Test artifacts
+*.test
+*.out
+*.prof
+/coverage.out
+/coverage.html
+
+# Local data
+/data/
+/var/
+
+# Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Frontend
+web/node_modules/
+web/dist/
+web/.vite/
+
+# Secrets
+*.env
+!.env.example
+mfpoc.env
+
+# Ephemeral
+*.log

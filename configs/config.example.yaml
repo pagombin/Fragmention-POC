@@ -1,0 +1,108 @@
+# MongoDB Fragmentation POC - example configuration.
+# Copy to config.yaml and edit. Every field is optional except mongo.uri
+# (or mongo.host) and, when auth is enabled, auth.bearer_token.
+#
+# Secret references:
+#   ${env:VAR}        - read from environment variable VAR at startup
+#   ${file:/path}     - read the trimmed contents of /path at startup
+
+server:
+  listen: "0.0.0.0:8080"              # public bind without TLS is REFUSED by default
+  max_request_bytes: 1048576           # 1 MiB
+  read_header_timeout: 10s
+  read_timeout: 30s
+  write_timeout: 60s
+  idle_timeout: 120s
+  shutdown_timeout: 30s
+  rate_limit_per_minute: 60
+  rate_limit_failed_auth_per_minute: 10
+  insecure_allow_http_on_public: false
+
+  tls:
+    enabled: false
+    # Option 1: explicit cert + key paths.
+    cert_file: ""
+    key_file: ""
+    # Option 2: generate a self-signed cert on first run.
+    self_signed: false
+    data_dir: "./data/tls"
+    # Option 3: Let's Encrypt via autocert (requires DNS pointing at droplet).
+    acme:
+      enabled: false
+      domain: ""
+      email: ""
+      cache_dir: "./data/acme"
+
+  # Optional HTTP->HTTPS redirect listener when TLS is on.
+  http_redirect_listen: ""
+
+mongo:
+  # Use either a full URI:
+  uri: "mongodb://localhost:27017/?replicaSet=rs0"
+  # ... or SRV seedlist (Atlas-style or Aiven-style managed clusters):
+  # uri: "mongodb+srv://user:${env:MONGO_PASSWORD}@cluster.example.com/?authSource=admin"
+  #
+  # ... or build one from parts (uri wins when both are set):
+  # host: localhost
+  # port: 27017
+  # username: ""
+  # password: ""
+  # replica_set: ""
+  # auth_source: admin
+  # tls: false
+
+  connect_timeout: 10s                 # bumped to 30s automatically for mongodb+srv://
+  operation_timeout: 30s
+  max_pool_size: 100
+  min_pool_size: 0
+  app_name: mfpoc
+
+storage:
+  path: "./data/mfpoc.db"
+  busy_timeout: 5s
+  metrics_retention_days: 30
+  cluster_metrics_retention_days: 365
+  janitor_interval: 24h
+
+logging:
+  level: info                          # trace|debug|info|warn|error
+  format: json                         # json|console
+
+auth:
+  enabled: true
+  bearer_token: "${env:MFPOC_BEARER_TOKEN}"  # must be at least 32 bytes
+  # Alternative: HTTP Basic.
+  # basic_user: ""
+  # basic_pass: "${env:MFPOC_BASIC_PASS}"
+
+loader:
+  default_workers: 0                   # 0 => 2 * NumCPU at runtime
+  default_batch_size: 1000
+  default_write_concern: "1"
+  storage_headroom_percent: 30.0
+
+deleter:
+  default_batch_size: 1000
+  preview_ttl: 2m
+  max_ratio: 0.95
+  inter_batch_jitter: 25ms
+
+collector:
+  idle_interval: 10s
+  active_interval: 2s
+  backoff_initial: 1s
+  backoff_max: 30s
+
+compact:
+  max_replication_lag: 10s
+  stepdown_wait_timeout: 60s
+  validate_after_compact: false
+
+workload:
+  default_target_ops_per_sec: 100
+  default_read_weight: 0.7
+  default_write_weight: 0.2
+  default_aggregate_weight: 0.1
+
+poc:
+  database_prefix: "poc_db_"
