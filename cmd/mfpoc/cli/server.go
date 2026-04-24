@@ -14,6 +14,7 @@ import (
 	"github.com/pagombin/fragmention-poc/internal/api"
 	"github.com/pagombin/fragmention-poc/internal/collector"
 	"github.com/pagombin/fragmention-poc/internal/config"
+	"github.com/pagombin/fragmention-poc/internal/deleter"
 	"github.com/pagombin/fragmention-poc/internal/loader"
 	"github.com/pagombin/fragmention-poc/internal/logging"
 	"github.com/pagombin/fragmention-poc/internal/metrics"
@@ -84,6 +85,7 @@ func newServerCmd() *cobra.Command {
 			sup := supervisor.New(logger)
 			var col *collector.Collector
 			var loaderSvc *loader.Service
+			var deleterSvc *deleter.Service
 			if mc != nil {
 				col = collector.New(collector.Config{
 					IdleInterval:   cfg.Collector.IdleInterval,
@@ -114,6 +116,23 @@ func newServerCmd() *cobra.Command {
 					return fmt.Errorf("init loader service: %w", svcErr)
 				}
 				loaderSvc = svc
+
+				delSvc, delErr := deleter.NewService(deleter.Deps{
+					Logger:    logger,
+					Mongo:     mc,
+					Ops:       storage.NewOperations(store),
+					Events:    storage.NewEvents(store),
+					Collector: col,
+					Store:     store,
+				}, deleter.Params{
+					BatchSize:        cfg.Deleter.DefaultBatchSize,
+					InterBatchJitter: cfg.Deleter.InterBatchJitter,
+					MaxRatio:         cfg.Deleter.MaxRatio,
+				}, cfg.Deleter.PreviewTTL)
+				if delErr != nil {
+					return fmt.Errorf("init deleter service: %w", delErr)
+				}
+				deleterSvc = delSvc
 			}
 
 			deps := api.Deps{
@@ -123,6 +142,7 @@ func newServerCmd() *cobra.Command {
 				Mongo:     mc,
 				Collector: col,
 				Loader:    loaderSvc,
+				Deleter:   deleterSvc,
 				Readyz: func(ctx context.Context) error {
 					if err := store.Ping(ctx); err != nil {
 						return fmt.Errorf("storage: %w", err)

@@ -56,3 +56,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (§ 21.3).
 - Startup orphan recovery automatically transitions interrupted operations
   to `interrupted` so the UI can offer resume/abort/retry (§ 21.2).
+- Deleter service (`internal/deleter`) implementing spec § 5.2:
+  - Five patterns: `random_by_id`, `range_by_field`, `modulo`,
+    `ttl_simulated`, `prefix_by_id`; each expressed via a `Pattern`
+    interface with `BuildFilter`, `EstimateMatchCount`, and
+    `CaptureCandidates` for pause/resume stability.
+  - Mandatory preview → confirmation-token → execute flow. Tokens are
+    32-byte hex, single-use, TTL-bounded.
+  - Persisted candidate sets in `delete_candidates` (gob-encoded) so
+    sampling patterns resume from the identical set after a restart.
+  - Per-collection and aggregate progress tracked in
+    `operation_progress`; completion auto-tags a `post_delete` snapshot
+    when a collector is wired in.
+  - Scope-overlap conflict detection shared with the loader (§ 21.3).
+  - Prometheus metrics: `deleter_docs_deleted_total`,
+    `deleter_batch_duration_seconds`, `deleter_errors_total`.

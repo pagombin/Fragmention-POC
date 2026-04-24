@@ -33,6 +33,7 @@ type Deps struct {
 	Mongo     *mongoClient.Client
 	Collector *collector.Collector
 	Loader    any // *loader.Service; untyped here to avoid import coupling
+	Deleter   any // *deleter.Service
 }
 
 // NewRouter constructs the Phase-1 API surface: uniform envelope, auth,
