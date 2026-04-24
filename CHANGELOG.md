@@ -141,3 +141,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   diff rendered inline with fragmentation before→after.
 - Run Detail + Compare Runs views render fragmentation-over-time
   charts via recharts.
+- Report generator (`internal/reports`) produces a structured
+  JSON report for any run with baseline/final storage, total bytes
+  reclaimed, percent reclaim, baseline/final fragmentation ratios,
+  duration, per-collection reclaim (sorted by bytes reclaimed),
+  and the full cluster-fragmentation trajectory.
+- Snapshot-compare report variant lets the Initial Sync Companion
+  export the external-sync reclaim as JSON or CSV.
+- Endpoints: `GET /api/v1/runs/{id}/report`,
+  `GET /api/v1/runs/{id}/report.csv`,
+  `GET /api/v1/snapshots/compare/report`,
+  `GET /api/v1/snapshots/compare/report.csv`.

@@ -24,6 +24,7 @@ import (
 	"github.com/pagombin/fragmention-poc/internal/logging"
 	"github.com/pagombin/fragmention-poc/internal/metrics"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
+	"github.com/pagombin/fragmention-poc/internal/reports"
 	"github.com/pagombin/fragmention-poc/internal/storage"
 	"github.com/pagombin/fragmention-poc/internal/version"
 	"github.com/pagombin/fragmention-poc/internal/workload"
@@ -123,6 +124,8 @@ func NewRouter(d Deps) http.Handler {
 		handlers.RegisterRuns(r, handlers.RunsDeps{
 			Runs: runsRepo, Snaps: snaps, Samples: samples, Events: events,
 		})
+		gen := &reports.Generator{Runs: runsRepo, Snaps: snaps, Ops: ops, Samples: samples}
+		handlers.RegisterReports(r, handlers.ReportDeps{Generator: gen})
 	}
 	registerStreams(r, d)
 	// SPA catch-all. Register AFTER the API routes so anything under /api,
