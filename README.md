@@ -99,6 +99,7 @@ See [`configs/config.example.yaml`](configs/config.example.yaml) and
 | [LIMITATIONS.md](docs/LIMITATIONS.md) | Known limits |
 | [GLOSSARY.md](docs/GLOSSARY.md) | Terms used in UI and reports |
 | [TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md) | Common errors |
+| [FUTURE.md](FUTURE.md) | Backlog & deliberate omissions |
 
 ## License
 
