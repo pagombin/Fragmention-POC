@@ -1,0 +1,34 @@
+[Unit]
+Description=mfpoc - MongoDB Fragmentation Reclamation POC
+Documentation=https://github.com/pagombin/Fragmention-POC
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=mfpoc
+Group=mfpoc
+EnvironmentFile=/etc/mfpoc/mfpoc.env
+ExecStart=/usr/local/bin/mfpoc server --config /etc/mfpoc/config.yaml
+Restart=on-failure
+RestartSec=5s
+LimitNOFILE=65536
+
+# Hardening per spec § 13.1.
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+ReadWritePaths=/var/lib/mfpoc
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service
+
+[Install]
+WantedBy=multi-user.target
