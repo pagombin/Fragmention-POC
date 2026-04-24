@@ -24,6 +24,7 @@ import (
 	"github.com/pagombin/fragmention-poc/internal/collector"
 	"github.com/pagombin/fragmention-poc/internal/generator"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
+	"github.com/pagombin/fragmention-poc/internal/opevents"
 	"github.com/pagombin/fragmention-poc/internal/storage"
 )
 
@@ -550,6 +551,12 @@ func (l *Loader) recordEvent(ctx context.Context, level storage.EventLevel, cate
 		Category:    category,
 		Message:     message,
 		Context:     ctxMap,
+	})
+	opevents.Publish(category, map[string]any{
+		"operation_id": l.id,
+		"kind":         "loader",
+		"message":      message,
+		"context":      ctxMap,
 	})
 }
 

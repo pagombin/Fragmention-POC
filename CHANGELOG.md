@@ -107,3 +107,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   - `events/` — list with category + run_id filters.
 - Runs repository (`internal/storage/runs.go`) with lifecycle status
   transitions (created → running → completed/cancelled/failed).
+- WebSocket live streams (`internal/api/websocket`):
+  - Hub with bounded per-subscriber buffers and drop-on-slow-reader
+    fan-out; exposed at `GET /api/v1/stream/metrics` and
+    `GET /api/v1/stream/operations`.
+  - Heartbeat ping every 30s keeps intermediaries from idling the
+    connection closed.
+  - Collector emits `collector_tick` frames after each successful
+    sampling pass so the dashboard can reflect fragmentation in near
+    real time without polling.
+- Operation-event seam (`internal/opevents`): services publish
+  lifecycle frames (loader_started, deleter_paused, compact_stopped,
+  workload_completed, etc.) without importing the websocket package.
+  An adapter in the server wires the seam into the ops hub.

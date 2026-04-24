@@ -21,6 +21,7 @@ import (
 
 	"github.com/pagombin/fragmention-poc/internal/collector"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
+	"github.com/pagombin/fragmention-poc/internal/opevents"
 	"github.com/pagombin/fragmention-poc/internal/storage"
 )
 
@@ -544,12 +545,16 @@ func (d *Deleter) finalize(ctx context.Context, state storage.OperationState, er
 }
 
 func (d *Deleter) emit(ctx context.Context, level storage.EventLevel, category, message string) {
-	if d.events == nil {
-		return
+	if d.events != nil {
+		id := d.id
+		_, _ = d.events.Record(ctx, storage.Event{
+			OperationID: &id, Level: level, Category: category, Message: message,
+		})
 	}
-	id := d.id
-	_, _ = d.events.Record(ctx, storage.Event{
-		OperationID: &id, Level: level, Category: category, Message: message,
+	opevents.Publish(category, map[string]any{
+		"operation_id": d.id,
+		"kind":         "deleter",
+		"message":      message,
 	})
 }
 

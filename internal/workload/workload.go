@@ -24,6 +24,7 @@ import (
 
 	"github.com/pagombin/fragmention-poc/internal/metrics"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
+	"github.com/pagombin/fragmention-poc/internal/opevents"
 	"github.com/pagombin/fragmention-poc/internal/storage"
 )
 
@@ -376,12 +377,16 @@ func (w *Workload) stopped() bool {
 }
 
 func (w *Workload) emit(ctx context.Context, level storage.EventLevel, category, message string) {
-	if w.events == nil {
-		return
+	if w.events != nil {
+		id := w.id
+		_, _ = w.events.Record(ctx, storage.Event{
+			OperationID: &id, Level: level, Category: category, Message: message,
+		})
 	}
-	id := w.id
-	_, _ = w.events.Record(ctx, storage.Event{
-		OperationID: &id, Level: level, Category: category, Message: message,
+	opevents.Publish(category, map[string]any{
+		"operation_id": w.id,
+		"kind":         "workload",
+		"message":      message,
 	})
 }
 

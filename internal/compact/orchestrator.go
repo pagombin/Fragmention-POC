@@ -16,6 +16,7 @@ import (
 
 	"github.com/pagombin/fragmention-poc/internal/collector"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
+	"github.com/pagombin/fragmention-poc/internal/opevents"
 	"github.com/pagombin/fragmention-poc/internal/storage"
 )
 
@@ -496,12 +497,17 @@ func (o *Orchestrator) fail(ctx context.Context, err error) error {
 }
 
 func (o *Orchestrator) emit(ctx context.Context, level storage.EventLevel, category, message string) {
-	if o.events == nil {
-		return
+	if o.events != nil {
+		id := o.id
+		_, _ = o.events.Record(ctx, storage.Event{
+			OperationID: &id, Level: level, Category: category, Message: message,
+		})
 	}
-	id := o.id
-	_, _ = o.events.Record(ctx, storage.Event{
-		OperationID: &id, Level: level, Category: category, Message: message,
+	opevents.Publish(category, map[string]any{
+		"operation_id": o.id,
+		"kind":         "compact",
+		"message":      message,
+		"current_step": o.CurrentStep(),
 	})
 }
 

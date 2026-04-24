@@ -12,12 +12,14 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/pagombin/fragmention-poc/internal/api"
+	ws "github.com/pagombin/fragmention-poc/internal/api/websocket"
 	"github.com/pagombin/fragmention-poc/internal/collector"
 	"github.com/pagombin/fragmention-poc/internal/compact"
 	"github.com/pagombin/fragmention-poc/internal/config"
 	"github.com/pagombin/fragmention-poc/internal/deleter"
 	"github.com/pagombin/fragmention-poc/internal/loader"
 	"github.com/pagombin/fragmention-poc/internal/logging"
+	"github.com/pagombin/fragmention-poc/internal/opevents"
 	"github.com/pagombin/fragmention-poc/internal/metrics"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
 	"github.com/pagombin/fragmention-poc/internal/storage"
@@ -85,6 +87,11 @@ func newServerCmd() *cobra.Command {
 			}
 
 			sup := supervisor.New(logger)
+			metricsHub := ws.NewHub("metrics", logger)
+			opsHub := ws.NewHub("operations", logger)
+			opevents.SetSink(opsSinkAdapter{hub: opsHub})
+			defer opevents.SetSink(nil)
+
 			var col *collector.Collector
 			var loaderSvc *loader.Service
 			var deleterSvc *deleter.Service
@@ -97,6 +104,7 @@ func newServerCmd() *cobra.Command {
 					BackoffInitial: cfg.Collector.BackoffInitial,
 					BackoffMax:     cfg.Collector.BackoffMax,
 				}, mc, storage.NewSamples(store), storage.NewSnapshots(store), storage.NewEvents(store), logger)
+				col.SetMetricsHub(metricsHub)
 				sup.Register(col)
 
 				// Startup orphan recovery per spec § 21.2: transition any
@@ -171,7 +179,9 @@ func newServerCmd() *cobra.Command {
 				Loader:    loaderSvc,
 				Deleter:   deleterSvc,
 				Compact:   compactSvc,
-				Workload:  workloadSvc,
+				Workload:   workloadSvc,
+				MetricsHub: metricsHub,
+				OpsHub:     opsHub,
 				Readyz: func(ctx context.Context) error {
 					if err := store.Ping(ctx); err != nil {
 						return fmt.Errorf("storage: %w", err)
@@ -199,6 +209,15 @@ func newServerCmd() *cobra.Command {
 			return nil
 		},
 	}
+}
+
+// opsSinkAdapter bridges opevents.Frame -> ws.Frame. They are structurally
+// identical (Type/Timestamp/Payload) but live in different packages to keep
+// service code free of HTTP imports.
+type opsSinkAdapter struct{ hub *ws.Hub }
+
+func (a opsSinkAdapter) Publish(f opevents.Frame) {
+	a.hub.Publish(ws.Frame{Type: f.Type, Timestamp: f.Timestamp, Payload: f.Payload})
 }
 
 func boolStr(b bool) string {

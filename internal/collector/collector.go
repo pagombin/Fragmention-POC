@@ -17,6 +17,7 @@ import (
 	"github.com/google/uuid"
 	"github.com/rs/zerolog"
 
+	ws "github.com/pagombin/fragmention-poc/internal/api/websocket"
 	"github.com/pagombin/fragmention-poc/internal/metrics"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
 	"github.com/pagombin/fragmention-poc/internal/storage"
@@ -45,7 +46,15 @@ type Collector struct {
 	lastError  error
 
 	activeCount atomic.Int32
+
+	// MetricsHub (optional) receives a summary frame after every successful
+	// tick. Set via SetMetricsHub.
+	metricsHub *ws.Hub
 }
+
+// SetMetricsHub wires a websocket hub the collector publishes to after each
+// tick. Safe to call once at startup.
+func (c *Collector) SetMetricsHub(h *ws.Hub) { c.metricsHub = h }
 
 // New constructs a Collector. Pass activeCount==nil to let the collector own
 // its own active-flag; the supervisor increments it when loader/deleter/
@@ -232,6 +241,15 @@ func (c *Collector) tick(ctx context.Context) error {
 
 	if _, err := c.samples.WriteBatch(ctx, batch); err != nil {
 		return fmt.Errorf("persist samples: %w", err)
+	}
+	if c.metricsHub != nil {
+		c.metricsHub.Publish(ws.Frame{
+			Type: "collector_tick",
+			Payload: map[string]any{
+				"sample_count": len(batch),
+				"topology":     top,
+			},
+		})
 	}
 	return nil
 }

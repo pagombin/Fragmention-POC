@@ -13,6 +13,7 @@ import (
 	"github.com/pagombin/fragmention-poc/internal/api/apiresp"
 	"github.com/pagombin/fragmention-poc/internal/api/handlers"
 	"github.com/pagombin/fragmention-poc/internal/api/middleware"
+	ws "github.com/pagombin/fragmention-poc/internal/api/websocket"
 	"github.com/pagombin/fragmention-poc/internal/collector"
 	"github.com/pagombin/fragmention-poc/internal/compact"
 	"github.com/pagombin/fragmention-poc/internal/config"
@@ -38,6 +39,10 @@ type Deps struct {
 	Deleter   *deleter.Service
 	Compact   *compact.Service
 	Workload  *workload.Service
+	// MetricsHub and OpsHub are optional; when nil the /stream/* routes are
+	// registered but simply report "no hub".
+	MetricsHub *ws.Hub
+	OpsHub     *ws.Hub
 }
 
 // NewRouter constructs the Phase-1 API surface: uniform envelope, auth,
@@ -117,7 +122,28 @@ func NewRouter(d Deps) http.Handler {
 			Runs: runsRepo, Snaps: snaps, Samples: samples, Events: events,
 		})
 	}
+	registerStreams(r, d)
 	return r
+}
+
+// registerStreams mounts the two live WebSocket endpoints. Both paths are
+// always registered - a missing hub simply sends a 503 - so clients can
+// discover capability via HTTP rather than probing WS upgrades.
+func registerStreams(r chi.Router, d Deps) {
+	r.Get("/api/v1/stream/metrics", func(w http.ResponseWriter, r *http.Request) {
+		if d.MetricsHub == nil {
+			apiresp.WriteError(w, http.StatusServiceUnavailable, "no_hub", "metrics stream disabled", nil)
+			return
+		}
+		ws.Serve(r.Context(), d.Logger, d.MetricsHub, w, r)
+	})
+	r.Get("/api/v1/stream/operations", func(w http.ResponseWriter, r *http.Request) {
+		if d.OpsHub == nil {
+			apiresp.WriteError(w, http.StatusServiceUnavailable, "no_hub", "operations stream disabled", nil)
+			return
+		}
+		ws.Serve(r.Context(), d.Logger, d.OpsHub, w, r)
+	})
 }
 
 func registerMetrics(r chi.Router) {
