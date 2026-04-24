@@ -6,6 +6,12 @@ Loads massive synthetic datasets, induces controlled fragmentation, measures
 `collStats`/`dbStats` as a time series, runs rolling compacts, and captures
 before/after snapshots around externally-triggered initial syncs.
 
+## 👉 Start here
+
+If you just want to see it working: **[TESTING.md](TESTING.md)** —
+four clearly-labeled paths from fresh clone to working dashboard,
+pick whichever matches what you have installed.
+
 ## Status
 
 Under active development — see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md)
