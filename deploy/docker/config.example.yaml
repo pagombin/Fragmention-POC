@@ -1,0 +1,22 @@
+# Minimal container-friendly config. Env vars (MFPOC_*) override everything;
+# this file exists so operators have somewhere to start.
+
+server:
+  listen: "0.0.0.0:8080"
+  insecure_allow_http_on_public: true  # ok for local compose; NEVER on droplet
+
+mongo:
+  uri: "mongodb://mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0"
+
+storage:
+  path: "/var/lib/mfpoc/mfpoc.db"
+
+logging:
+  level: debug
+  format: json
+
+auth:
+  enabled: false
+
+poc:
+  database_prefix: "poc_db_"

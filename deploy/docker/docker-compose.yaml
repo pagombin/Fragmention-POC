@@ -1,0 +1,100 @@
+# Local dev stack: 3-node MongoDB replica set + the mfpoc app.
+# Bring it up with: make docker-up  (or `docker compose -f deploy/docker/docker-compose.yaml up`)
+#
+# The three mongod members form replica set rs0 via the rs-init helper.
+# Data is persistent across restarts in the named volumes.
+
+version: "3.9"
+services:
+  mongo1:
+    image: mongo:7.0
+    container_name: mfpoc-mongo1
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo1-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  mongo2:
+    image: mongo:7.0
+    container_name: mfpoc-mongo2
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    volumes:
+      - mongo2-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  mongo3:
+    image: mongo:7.0
+    container_name: mfpoc-mongo3
+    command: ["mongod", "--replSet", "rs0", "--bind_ip_all", "--port", "27017"]
+    volumes:
+      - mongo3-data:/data/db
+    healthcheck:
+      test: ["CMD", "mongosh", "--quiet", "--eval", "db.adminCommand('ping').ok"]
+      interval: 5s
+      timeout: 5s
+      retries: 30
+
+  # One-shot init container that runs rs.initiate and exits.
+  rs-init:
+    image: mongo:7.0
+    container_name: mfpoc-rs-init
+    depends_on:
+      mongo1:
+        condition: service_healthy
+      mongo2:
+        condition: service_healthy
+      mongo3:
+        condition: service_healthy
+    restart: "no"
+    entrypoint:
+      - bash
+      - -c
+      - |
+        set -e
+        # Only initiate if not already initiated.
+        if ! mongosh --host mongo1:27017 --quiet --eval 'rs.status().ok' >/dev/null 2>&1; then
+          mongosh --host mongo1:27017 --quiet --eval '
+            rs.initiate({
+              _id: "rs0",
+              members: [
+                { _id: 0, host: "mongo1:27017" },
+                { _id: 1, host: "mongo2:27017" },
+                { _id: 2, host: "mongo3:27017" }
+              ]
+            });'
+        fi
+
+  mfpoc:
+    build:
+      context: ../..
+      dockerfile: deploy/docker/Dockerfile
+    container_name: mfpoc-app
+    depends_on:
+      - rs-init
+    environment:
+      MFPOC_MONGO_URI: "mongodb://mongo1:27017,mongo2:27017,mongo3:27017/?replicaSet=rs0"
+      MFPOC_SERVER_LISTEN: "0.0.0.0:8080"
+      MFPOC_AUTH_ENABLED: "false"
+      MFPOC_LOGGING_LEVEL: "debug"
+      MFPOC_STORAGE_PATH: "/var/lib/mfpoc/mfpoc.db"
+    ports:
+      - "8080:8080"
+    volumes:
+      - mfpoc-data:/var/lib/mfpoc
+      - ./config.example.yaml:/etc/mfpoc/config.yaml:ro
+
+volumes:
+  mongo1-data:
+  mongo2-data:
+  mongo3-data:
+  mfpoc-data:

@@ -80,7 +80,20 @@ frontend-embed:
 
 .PHONY: docker
 docker:
-	docker build -f deploy/docker/Dockerfile -t mfpoc:$(VERSION) .
+	docker build -f deploy/docker/Dockerfile -t mfpoc:$(VERSION) \
+	  --build-arg VERSION=$(VERSION) --build-arg COMMIT=$(COMMIT) --build-arg BUILDTIME=$(BUILDTIME) .
+
+.PHONY: docker-up
+docker-up:
+	docker compose -f deploy/docker/docker-compose.yaml up -d --build
+
+.PHONY: docker-down
+docker-down:
+	docker compose -f deploy/docker/docker-compose.yaml down -v
+
+.PHONY: test-e2e
+test-e2e:
+	$(GO) test -tags=integration -race -count=1 -timeout=15m ./test/e2e/...
 
 .PHONY: deploy-droplet
 deploy-droplet: build-linux-amd64
