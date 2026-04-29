@@ -59,7 +59,7 @@ export function ClusterOverview() {
               </tr>
             </thead>
             <tbody>
-              {data.topology.members.map((m) => (
+              {(data.topology.members ?? []).map((m) => (
                 <tr key={m.name} className="border-t border-slate-200/60 dark:border-slate-800">
                   <td className="py-1 font-mono text-xs">{m.name}</td>
                   <td><Badge tone={m.state === 'PRIMARY' ? 'success' : m.state === 'SECONDARY' ? 'info' : 'warn'}>{m.state}</Badge></td>

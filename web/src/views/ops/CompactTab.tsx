@@ -158,7 +158,7 @@ export function CompactTab() {
             <div>
               <div className="mb-1 text-xs uppercase tracking-wide text-slate-500">Execution order</div>
               <ol className="space-y-1">
-                {preview.execution_order.map((m, idx) => (
+                {(preview.execution_order ?? []).map((m, idx) => (
                   <li key={idx} className="flex items-start gap-2 rounded border border-slate-200 p-2 text-xs dark:border-slate-800">
                     <span className="font-mono text-slate-400 w-4 text-right">{idx + 1}.</span>
                     <div className="flex-1">

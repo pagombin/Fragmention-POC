@@ -126,7 +126,7 @@ func (o *Orchestrator) Plan(ctx context.Context) (PreviewResult, error) {
 		return PreviewResult{}, err
 	}
 
-	pr := PreviewResult{TotalCollections: len(colls)}
+	pr := PreviewResult{TotalCollections: len(colls), ExecutionOrder: []MemberPlan{}}
 	if top.Kind == mongoClient.TopologyStandalone {
 		pr.Mode = "single"
 		collStrs := make([]string, 0, len(colls))

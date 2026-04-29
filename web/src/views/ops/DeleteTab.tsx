@@ -197,7 +197,7 @@ export function DeleteTab() {
                   </tr>
                 </thead>
                 <tbody>
-                  {preview.per_collection.map((pc) => {
+                  {(preview.per_collection ?? []).map((pc) => {
                     const r = pc.total_documents > 0 ? pc.matched_count / pc.total_documents : 0;
                     return (
                       <tr key={`${pc.database}.${pc.collection}`} className="border-t border-slate-100 dark:border-slate-900">

@@ -64,8 +64,9 @@ func (s *Service) Preview(ctx context.Context, spec TargetSpec, params Params) (
 	}
 
 	res := PreviewResult{
-		Token:     generateToken(),
-		ExpiresAt: time.Now().Add(s.previewTTL).UTC(),
+		Token:         generateToken(),
+		ExpiresAt:     time.Now().Add(s.previewTTL).UTC(),
+		PerCollection: []PreviewPerColl{},
 	}
 	var total int64
 	var maxRatio float64

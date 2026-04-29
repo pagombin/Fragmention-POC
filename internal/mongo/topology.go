@@ -61,7 +61,10 @@ func (c *Client) DetectTopology(ctx context.Context) (Topology, error) {
 		}
 	}
 
-	top := Topology{DetectedAt: time.Now().UTC()}
+	// Initialize Members with an empty (non-nil) slice so JSON marshalling
+	// produces "[]" rather than "null". Browser code that does
+	// `topology.members.map(...)` would otherwise crash on a null read.
+	top := Topology{DetectedAt: time.Now().UTC(), Members: []Member{}}
 
 	if msg, _ := hello["msg"].(string); strings.EqualFold(msg, "isdbgrid") {
 		top.Kind = TopologyUnknown
