@@ -2,109 +2,172 @@
 
 End-to-end walkthrough for running mfpoc on a DigitalOcean droplet.
 
-## Prereqs
-
-- Ubuntu 22.04 or 24.04 droplet (2 vCPU / 4 GB is plenty for the app; size
-  separately for the target MongoDB load you want to stage).
-- SSH access as a user in `sudo`.
-- A MongoDB cluster reachable from the droplet. Either a standard
-  `mongodb://` URI in the same VPC, or an SRV URI (Atlas/Aiven) — make sure
-  `nslookup -type=SRV _mongodb._tcp.<host>` resolves from the droplet.
-
-## Deploy
-
-From a workstation with this repository cloned, Go toolchain, and an SSH
-key that can reach the droplet:
+## TL;DR
 
 ```bash
 export DROPLET_IP=203.0.113.10
-export DROPLET_USER=root          # or a sudo user
+export DROPLET_USER=root
+make deploy-droplet           # works for both first install AND upgrade
+```
+
+The output ends with the dashboard URL and your bearer token. Open the
+URL, paste the token into the login screen, you're in.
+
+## Prereqs
+
+- Ubuntu 22.04 / 24.04 droplet, 2 vCPU / 4 GB or larger.
+- SSH access as a sudo user (root works fine).
+- A MongoDB cluster reachable from the droplet:
+  - Same VPC: `mongodb://...` URI.
+  - Atlas / DigitalOcean Managed / Aiven: `mongodb+srv://...` URI; verify
+    `nslookup -type=SRV _mongodb._tcp.<host>` resolves from the droplet.
+
+## First-time install
+
+```bash
+export DROPLET_IP=203.0.113.10
+export DROPLET_USER=root
 make deploy-droplet
 ```
 
 That cross-compiles a static `mfpoc-linux-amd64`, scps it along with
 `install.sh`, `mfpoc.service`, and `config.droplet.yaml`, then runs
-`install.sh` remotely. On completion it prints the generated bearer token
-and the URL to the dashboard.
+`install.sh` remotely.
 
-## First-deploy checklist
+The installer:
 
-1. Note the printed bearer token (it's only echoed once). It also lives in
-   `/etc/mfpoc/mfpoc.env` readable only by `root` and the `mfpoc` group.
-2. Edit `/etc/mfpoc/mfpoc.env` and set `MFPOC_MONGO_URI` to your real
-   cluster URI, then `systemctl restart mfpoc`.
-3. Open `https://<droplet-ip>:8443` — the cert is self-signed on first run
-   so you'll need to accept the browser warning. The dashboard prompts for
-   the bearer token at the top.
+1. Creates the non-root `mfpoc` system user and `/var/lib/mfpoc/`.
+2. Places the binary at `/usr/local/bin/mfpoc`.
+3. Drops `config.droplet.yaml` at `/etc/mfpoc/config.yaml` (preserved on
+   re-runs).
+4. **Auto-generates a 32-byte hex bearer token** at
+   `/etc/mfpoc/mfpoc.env` (mode 0640, root:mfpoc). **Preserved on re-runs.**
+5. Installs the hardened `mfpoc.service` systemd unit (NoNewPrivileges,
+   ProtectSystem=strict, ProtectHome, PrivateTmp, restricted capability
+   set, ReadWritePaths=/var/lib/mfpoc).
+6. Opens UFW for the configured port and SSH.
+7. Starts the service and prints the connection URL + token.
 
-## What install.sh does
+Detected droplet IP comes from DigitalOcean instance metadata first,
+then `ifconfig.me`, then the primary network interface, so the printed
+URL is always your actual public IP.
 
-- Creates the non-root `mfpoc` system user and `/var/lib/mfpoc/`.
-- Places the binary at `/usr/local/bin/mfpoc`.
-- Drops config at `/etc/mfpoc/config.yaml` and env secrets at
-  `/etc/mfpoc/mfpoc.env` (mode 0640, root:mfpoc).
-- Installs `mfpoc.service` with systemd hardening
-  (NoNewPrivileges, ProtectSystem=strict, ProtectHome, PrivateTmp,
-  ReadWritePaths=/var/lib/mfpoc, capabilities dropped).
-- Opens the configured TCP port (default 8443) and SSH on UFW.
-- Starts and enables the service.
+## Upgrades / redeploys
 
-Re-running install.sh after a new binary build is safe — it preserves the
-existing config and env file, swaps the binary, and restarts the service.
-
-## Rotate the bearer token
+Same command:
 
 ```bash
-sudo sed -i "s|^MFPOC_AUTH_BEARER_TOKEN=.*|MFPOC_AUTH_BEARER_TOKEN=$(openssl rand -hex 32)|" /etc/mfpoc/mfpoc.env
-sudo systemctl restart mfpoc
-sudo cat /etc/mfpoc/mfpoc.env | grep MFPOC_AUTH_BEARER_TOKEN
+make deploy-droplet     # or: make redeploy-droplet (alias)
 ```
+
+The installer detects the existing binary, **preserves**:
+
+- `/etc/mfpoc/config.yaml`
+- `/etc/mfpoc/mfpoc.env` (so your token does NOT change)
+- `/var/lib/mfpoc/mfpoc.db` (your runs, snapshots, ops, events, samples)
+
+… and only:
+
+- swaps the binary
+- refreshes the systemd unit
+- restarts the service
+
+The "UPGRADED" banner at the end shows the prior + new version. Token is
+reprinted regardless so you can grab it again if the previous deploy's
+output scrolled away.
+
+## Configuring the Mongo URI
+
+After the first install, the env file has a placeholder URI. Set yours:
+
+```bash
+ssh root@$DROPLET_IP
+sudo $EDITOR /etc/mfpoc/mfpoc.env       # replace MFPOC_MONGO_URI=...
+sudo systemctl restart mfpoc
+```
+
+Or non-interactively:
+
+```bash
+ssh root@$DROPLET_IP "sudo sed -i 's|^MFPOC_MONGO_URI=.*|MFPOC_MONGO_URI=mongodb+srv://USER:PASS@HOST/?authSource=admin\&retryWrites=true|' /etc/mfpoc/mfpoc.env && sudo systemctl restart mfpoc"
+```
+
+`retryWrites=true` is recommended — it stacks with the app's 20-attempt
+exponential-backoff for managed cluster timeouts.
+
+## Token: how it's stored & what happens on redeploy
+
+| Question | Answer |
+|---|---|
+| Where is it generated? | On first install, by `openssl rand -hex 32` inside `install.sh`. |
+| Where is it stored? | `/etc/mfpoc/mfpoc.env` (mode 0640, owner `root:mfpoc`). |
+| Is it logged? | No. Redacted from server startup logs. Printed once by `install.sh` to operator stdout. |
+| Does it change on redeploy? | **No.** install.sh detects the existing env file and preserves it. |
+| How do I retrieve it later? | `make show-droplet-token DROPLET_IP=... DROPLET_USER=root` |
+| How do I rotate it? | Edit `/etc/mfpoc/mfpoc.env`, replace the value, `systemctl restart mfpoc`. |
+| Where does the dashboard store it? | Browser `localStorage` under key `mfpoc-auth`. Cleared by emptying the top-bar input. |
+
+## Browser flow
+
+When you open the dashboard:
+
+1. The SPA probes `/api/v1/version` to see if auth is required.
+2. If auth is enabled and no token is set, you get a **first-class auth
+   screen** (not a tiny top-bar input you'd never find). Paste the token
+   from `install.sh` output.
+3. The token persists in browser localStorage. Subsequent visits skip the
+   auth screen.
+
+Self-signed cert warning is expected — accept the browser exception or
+install the cert into your local trust store. ACME/Let's Encrypt is also
+supported once you have a DNS name; see `config.droplet.yaml` for the
+acme block.
 
 ## Operations
 
 | Task | Command |
 |---|---|
 | Status | `systemctl status mfpoc` |
-| Logs (follow) | `journalctl -u mfpoc -f` |
+| Logs (follow) | `make tail-droplet-logs DROPLET_IP=... DROPLET_USER=...` or `journalctl -u mfpoc -f` on the droplet |
 | Restart | `systemctl restart mfpoc` |
 | Stop | `systemctl stop mfpoc` |
-| Config reload | Edit `/etc/mfpoc/config.yaml`, then restart |
+| Print token | `make show-droplet-token DROPLET_IP=... DROPLET_USER=...` |
+| Upgrade / redeploy | `make deploy-droplet` (token + state preserved) |
 
 ## Backup / restore
 
-The state store lives at `/var/lib/mfpoc/mfpoc.db`. Stop the service, copy
-the file, bring the service back:
+Everything (runs, snapshots, ops, events, samples) is in
+`/var/lib/mfpoc/mfpoc.db`. Stop the service, copy, restart:
 
 ```bash
-sudo systemctl stop mfpoc
-sudo cp /var/lib/mfpoc/mfpoc.db /backup/mfpoc-$(date +%F).db
-sudo systemctl start mfpoc
+ssh root@$DROPLET_IP "sudo systemctl stop mfpoc && \
+  sudo cp /var/lib/mfpoc/mfpoc.db /backup/mfpoc-\$(date +%F).db && \
+  sudo systemctl start mfpoc"
 ```
-
-## Upgrade
-
-Re-run `make deploy-droplet` from your workstation. The installer detects
-the existing config and env file and only swaps the binary.
 
 ## Uninstall
 
 ```bash
-sudo systemctl stop mfpoc
-sudo systemctl disable mfpoc
+ssh root@$DROPLET_IP <<'EOF'
+sudo systemctl stop mfpoc && sudo systemctl disable mfpoc
 sudo rm /etc/systemd/system/mfpoc.service
 sudo rm -rf /etc/mfpoc /var/lib/mfpoc /usr/local/bin/mfpoc
 sudo userdel mfpoc
-sudo ufw delete allow 8443/tcp
+sudo ufw delete allow 8443/tcp || true
+EOF
 ```
 
 ## Troubleshooting
 
-- **Service crash-loops with "config invalid: auth.bearer_token must be at
-  least 32 bytes"** — the env file wasn't generated. Re-run
-  `install.sh` or `export MFPOC_BEARER_TOKEN=$(openssl rand -hex 32)` and
-  rerun.
+- **Service crash-loops with "auth.bearer_token must be at least 32 bytes"**
+  — env file wasn't generated. Re-run `make deploy-droplet`.
 - **`/ready` returns 503** — Mongo is unreachable. Check
-  `MFPOC_MONGO_URI` in `/etc/mfpoc/mfpoc.env`, then
-  `nslookup -type=SRV` if using SRV, `telnet <host> 27017` otherwise.
-- **Browser warns about self-signed cert** — expected. Add a trust
-  exception or switch to ACME once you have a DNS name.
+  `MFPOC_MONGO_URI`, then `nslookup -type=SRV` if SRV, `nc -vz host 27017`
+  otherwise.
+- **Browser shows "missing bearer token" after redeploy** — token did
+  *not* change; the browser localStorage is empty. Run
+  `make show-droplet-token` and paste it into the auth screen.
+- **Dashboard shows "disconnected"** — open the auth screen via the
+  top-bar input, or check `journalctl -u mfpoc -n 100` for connection
+  errors.
+- **Want a fresh token** — `sudo sed -i "s|^MFPOC_AUTH_BEARER_TOKEN=.*|MFPOC_AUTH_BEARER_TOKEN=$(openssl rand -hex 32)|" /etc/mfpoc/mfpoc.env && sudo systemctl restart mfpoc && sudo grep MFPOC_AUTH_BEARER_TOKEN /etc/mfpoc/mfpoc.env`

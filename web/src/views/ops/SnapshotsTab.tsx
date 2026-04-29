@@ -33,11 +33,17 @@ export function SnapshotsTab() {
         <CardHeader><CardTitle>Take snapshot</CardTitle></CardHeader>
         <CardBody>
           <div className="grid grid-cols-3 gap-3">
-            <div><Label>Label</Label><Input value={label} onChange={(e) => setLabel(e.target.value)} /></div>
-            <div className="col-span-2"><Label>Note (optional)</Label><Input value={note} onChange={(e) => setNote(e.target.value)} /></div>
+            <div title="Recognized labels: baseline, post_load, post_delete, pre_compact, post_compact, pre_initial_sync, post_initial_sync. Custom labels are also supported.">
+              <Label>Label</Label>
+              <Input value={label} onChange={(e) => setLabel(e.target.value)} />
+            </div>
+            <div className="col-span-2" title="Free-form note attached to the snapshot for audit / report context">
+              <Label>Note (optional)</Label>
+              <Input value={note} onChange={(e) => setNote(e.target.value)} />
+            </div>
           </div>
           <div className="mt-4">
-            <Button variant="primary" onClick={onTake} disabled={take.isPending || !label}>
+            <Button variant="primary" onClick={onTake} disabled={take.isPending || !label} title="Captures dbStats + collStats for every user database into the snapshots table">
               {take.isPending ? 'Taking…' : 'Take snapshot'}
             </Button>
           </div>

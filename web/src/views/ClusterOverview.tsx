@@ -25,37 +25,41 @@ export function ClusterOverview() {
     <Page>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <Card>
-          <CardHeader><CardTitle>Topology</CardTitle></CardHeader>
+          <CardHeader><CardTitle title="Detected cluster shape and the connection URI in use">Topology</CardTitle></CardHeader>
           <CardBody>
             <div className="flex items-center gap-2 text-sm">
-              <Badge tone="info">{data.topology.kind}</Badge>
-              {data.topology.replica_set && <Badge>{data.topology.replica_set}</Badge>}
-              {data.is_srv && <Badge tone="warn">mongodb+srv</Badge>}
+              <Badge tone="info" title="standalone = single-node mongod; replica_set = RS with members; sharded clusters are flagged but not driven">{data.topology.kind}</Badge>
+              {data.topology.replica_set && <Badge title="Replica set name from `setName`">{data.topology.replica_set}</Badge>}
+              {data.is_srv && <Badge tone="warn" title="DNS seedlist (mongodb+srv://); SRV resolution is performed by the driver. Connect timeout auto-bumps to 30s.">mongodb+srv</Badge>}
             </div>
-            <div className="mt-2 font-mono text-xs break-all text-slate-500">{data.redacted_uri}</div>
+            <div className="mt-2 font-mono text-xs break-all text-slate-500" title="Connection URI with passwords redacted">{data.redacted_uri}</div>
           </CardBody>
         </Card>
 
         <Card>
-          <CardHeader><CardTitle>Server</CardTitle></CardHeader>
+          <CardHeader><CardTitle title="MongoDB server identity from `buildInfo`">Server</CardTitle></CardHeader>
           <CardBody>
             <dl className="grid grid-cols-2 gap-1 text-sm">
-              <dt className="text-slate-500">Version</dt><dd className="font-mono">{data.server_info.Version}</dd>
-              <dt className="text-slate-500">FCV</dt><dd className="font-mono">{data.server_info.FCV || '—'}</dd>
-              <dt className="text-slate-500">Storage engine</dt><dd className="font-mono">{data.server_info.StorageEngine || '—'}</dd>
-              <dt className="text-slate-500">Git</dt><dd className="font-mono text-xs">{data.server_info.GitVersion || '—'}</dd>
+              <dt className="text-slate-500" title="MongoDB build version">Version</dt><dd className="font-mono">{data.server_info.Version}</dd>
+              <dt className="text-slate-500" title="featureCompatibilityVersion - controls which feature flags the server enables">FCV</dt><dd className="font-mono">{data.server_info.FCV || '—'}</dd>
+              <dt className="text-slate-500" title="Storage engine in use (always WiredTiger on supported versions)">Storage engine</dt><dd className="font-mono">{data.server_info.StorageEngine || '—'}</dd>
+              <dt className="text-slate-500" title="MongoDB build git revision">Git</dt><dd className="font-mono text-xs">{data.server_info.GitVersion || '—'}</dd>
             </dl>
           </CardBody>
         </Card>
       </div>
 
       <Card className="mt-4">
-        <CardHeader><CardTitle>Members</CardTitle></CardHeader>
+        <CardHeader><CardTitle title="Per-member status from rs.status() / hello (managed clusters fall back to hello.hosts)">Members</CardTitle></CardHeader>
         <CardBody>
           <table className="w-full text-sm">
             <thead>
               <tr className="text-left text-xs uppercase tracking-wide text-slate-500">
-                <th className="py-1">Name</th><th>State</th><th>Health</th><th>Lag (s)</th><th>Self</th>
+                <th className="py-1" title="Host:port from rs.status">Name</th>
+                <th title="Member state: PRIMARY, SECONDARY, ARBITER, STARTUP2 (initial sync), DOWN, etc.">State</th>
+                <th title="1 = healthy, 0 = unreachable">Health</th>
+                <th title="Replication lag in seconds vs. PRIMARY's optime">Lag (s)</th>
+                <th title="True if the dashboard's connection lands on this member">Self</th>
               </tr>
             </thead>
             <tbody>

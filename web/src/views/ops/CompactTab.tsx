@@ -76,7 +76,7 @@ export function CompactTab() {
           <CardHeader><CardTitle>Compact scope</CardTitle></CardHeader>
           <CardBody>
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div title="cluster compacts every user collection across every database. databases compacts one whole DB at a time. collections lets you pick exactly which collections to touch.">
                 <Label>Scope kind</Label>
                 <Select value={kind} onChange={(e) => setKind(e.target.value as ScopeKind)}>
                   <option value="cluster">cluster (all user databases)</option>
@@ -85,7 +85,7 @@ export function CompactTab() {
                 </Select>
               </div>
               {kind === 'databases' && (
-                <div>
+                <div title="Pick the single database to compact every collection of.">
                   <Label>Database</Label>
                   <Select value={dbChoice} onChange={(e) => setDbChoice(e.target.value)}>
                     <option value="">—</option>
@@ -93,15 +93,15 @@ export function CompactTab() {
                   </Select>
                 </div>
               )}
-              <div>
+              <div title="If any secondary's lag exceeds this at the start of a member's compact, a warning surfaces in the preview. Does not auto-abort.">
                 <Label>Max replication lag (seconds)</Label>
                 <Input type="number" min={0} value={maxLagS} onChange={(e) => setMaxLagS(Math.max(0, Number(e.target.value)))} />
               </div>
-              <div>
+              <div title="How long to wait for a new primary to be elected after replSetStepDown. The orchestrator fails the run if the timeout fires.">
                 <Label>Stepdown wait timeout (seconds)</Label>
                 <Input type="number" min={1} value={stepdownS} onChange={(e) => setStepdownS(Math.max(1, Number(e.target.value)))} />
               </div>
-              <div className="col-span-2 flex items-center gap-2">
+              <div className="col-span-2 flex items-center gap-2" title="Runs `validate` after each compact on the primary. Expensive on large collections; off by default.">
                 <input id="validate" type="checkbox" checked={validate} onChange={(e) => setValidate(e.target.checked)} />
                 <label htmlFor="validate" className="text-sm">Run validate after compact (expensive)</label>
               </div>

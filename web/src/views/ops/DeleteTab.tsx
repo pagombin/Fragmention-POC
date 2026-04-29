@@ -88,7 +88,7 @@ export function DeleteTab() {
           <CardHeader><CardTitle>Delete pattern</CardTitle></CardHeader>
           <CardBody>
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div title="Each pattern produces a different fragmentation profile. random_by_id and modulo create uniform holes; range/ttl create contiguous gaps.">
                 <Label>Pattern</Label>
                 <Select value={pattern} onChange={(e) => setPattern(e.target.value as DeletePattern)}>
                   {PATTERNS.map((p) => <option key={p.value} value={p.value}>{p.label}</option>)}
@@ -99,34 +99,34 @@ export function DeleteTab() {
                 <RatioField ratio={ratio} setRatio={setRatio} />
               )}
               {pattern === 'range_by_field' && (
-                <div>
+                <div title="Document field to filter on. Must be indexed for the delete to be efficient.">
                   <Label>Field</Label>
                   <Input value={field} onChange={(e) => setField(e.target.value)} placeholder="created_at" />
                 </div>
               )}
               {(pattern === 'range_by_field' || pattern === 'ttl_simulated') && (
-                <div>
+                <div title="Documents older than this timestamp will be deleted">
                   <Label>Cutoff (older than)</Label>
                   <Input type="datetime-local" value={rangeBefore} onChange={(e) => setRangeBefore(e.target.value)} />
                 </div>
               )}
               {pattern === 'modulo' && (
-                <div>
+                <div title="Delete every Nth document by _id hash. Higher N = fewer deletes, smaller more uniform holes.">
                   <Label>Modulus (every Nth)</Label>
                   <Input type="number" min={2} value={modulus} onChange={(e) => setModulus(Math.max(2, Number(e.target.value)))} />
                 </div>
               )}
               {pattern === 'prefix_by_id' && (
-                <div>
+                <div title="Hex prefix of _id (UUID-keyed string _ids). e.g. '00' deletes ~1/256 of docs.">
                   <Label>_id hex prefix</Label>
                   <Input value={prefix} onChange={(e) => setPrefix(e.target.value)} placeholder="00" />
                 </div>
               )}
-              <div>
+              <div title="RNG seed for deterministic sampling. Reuse the same seed to reproduce a delete pattern across runs.">
                 <Label>Seed (deterministic)</Label>
                 <Input type="number" value={seed} onChange={(e) => setSeed(Number(e.target.value))} />
               </div>
-              <div>
+              <div title="Documents per DeleteMany call. Larger = fewer round-trips but longer-running operations on the primary.">
                 <Label>Batch size</Label>
                 <Input type="number" min={1} value={batchSize} onChange={(e) => setBatchSize(Math.max(1, Number(e.target.value)))} />
               </div>

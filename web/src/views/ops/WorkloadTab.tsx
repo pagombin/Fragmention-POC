@@ -51,11 +51,11 @@ export function WorkloadTab() {
               <WeightSlider label="Read weight" value={read} onChange={setRead} />
               <WeightSlider label="Write weight" value={write} onChange={setWrite} />
               <WeightSlider label="Aggregate weight" value={agg} onChange={setAgg} />
-              <div>
+              <div title="Aggregate ops/sec across all workers. Token-bucket rate limited; 0 = unlimited.">
                 <Label>Target ops/sec</Label>
                 <Input type="number" min={1} value={opsPerSec} onChange={(e) => setOpsPerSec(Math.max(1, Number(e.target.value)))} />
               </div>
-              <div>
+              <div title="Number of concurrent workers. Each shares the rate limiter.">
                 <Label>Workers</Label>
                 <Input type="number" min={1} value={workers} onChange={(e) => setWorkers(Math.max(1, Number(e.target.value)))} />
               </div>
@@ -87,7 +87,7 @@ export function WorkloadTab() {
 
 function WeightSlider({ label, value, onChange }: { label: string; value: number; onChange: (v: number) => void }) {
   return (
-    <div>
+    <div title="Relative weight in the random op picker. Weights are normalized; (0.7, 0.2, 0.1) means 70% reads, 20% writes, 10% aggregations.">
       <Label>{label}</Label>
       <div className="flex items-center gap-2">
         <input type="range" min={0} max={1} step={0.05} value={value} onChange={(e) => onChange(Number(e.target.value))} className="flex-1" />

@@ -38,8 +38,9 @@ export function TopBar() {
           type="password"
           value={token ?? ''}
           onChange={(e) => setToken(e.target.value || null)}
+          title="Bearer token from /etc/mfpoc/mfpoc.env on the droplet. Stored in localStorage. Clear by emptying the field."
         />
-        <Button variant="ghost" size="sm" onClick={toggleTheme} title="Toggle theme">
+        <Button variant="ghost" size="sm" onClick={toggleTheme} title={theme === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}>
           {theme === 'dark' ? '☾' : '☀︎'}
         </Button>
       </div>

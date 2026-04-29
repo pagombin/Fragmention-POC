@@ -14,6 +14,7 @@ import { TopBar } from './components/layout/TopBar';
 import { Sidebar } from './components/layout/Sidebar';
 import { LiveOpsPanel } from './components/layout/LiveOpsPanel';
 import { Toasts } from './components/ui/Toasts';
+import { AuthGate } from './components/AuthGate';
 import { useUI } from './stores/ui';
 
 export default function App() {
@@ -52,27 +53,29 @@ export default function App() {
   }, [nav]);
 
   return (
-    <div className="flex h-screen flex-col">
-      <TopBar />
-      <div className="flex min-h-0 flex-1">
-        <Sidebar />
-        <main className="flex min-w-0 flex-1 flex-col">
-          <Routes>
-            <Route path="/" element={<ClusterOverview />} />
-            <Route path="/data" element={<DataBrowser />} />
-            <Route path="/ops" element={<OperationsConsole />} />
-            <Route path="/runs" element={<RunsList />} />
-            <Route path="/runs/:id" element={<RunDetail />} />
-            <Route path="/wizard" element={<NewRunWizard />} />
-            <Route path="/compare" element={<CompareRuns />} />
-            <Route path="/initial-sync" element={<InitialSyncCompanion />} />
-            <Route path="/events" element={<EventLog />} />
-            <Route path="/settings" element={<Settings />} />
-          </Routes>
-        </main>
-        <LiveOpsPanel />
+    <AuthGate>
+      <div className="flex h-screen flex-col">
+        <TopBar />
+        <div className="flex min-h-0 flex-1">
+          <Sidebar />
+          <main className="flex min-w-0 flex-1 flex-col">
+            <Routes>
+              <Route path="/" element={<ClusterOverview />} />
+              <Route path="/data" element={<DataBrowser />} />
+              <Route path="/ops" element={<OperationsConsole />} />
+              <Route path="/runs" element={<RunsList />} />
+              <Route path="/runs/:id" element={<RunDetail />} />
+              <Route path="/wizard" element={<NewRunWizard />} />
+              <Route path="/compare" element={<CompareRuns />} />
+              <Route path="/initial-sync" element={<InitialSyncCompanion />} />
+              <Route path="/events" element={<EventLog />} />
+              <Route path="/settings" element={<Settings />} />
+            </Routes>
+          </main>
+          <LiveOpsPanel />
+        </div>
+        <Toasts />
       </div>
-      <Toasts />
-    </div>
+    </AuthGate>
   );
 }

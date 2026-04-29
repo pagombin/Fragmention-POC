@@ -94,10 +94,35 @@ test-e2e:
 
 .PHONY: deploy-droplet
 deploy-droplet: build-linux-amd64
+	@test -n "$$DROPLET_IP" || (echo "DROPLET_IP is required (export DROPLET_IP=...)" && exit 1)
+	@test -n "$$DROPLET_USER" || (echo "DROPLET_USER is required (export DROPLET_USER=root)" && exit 1)
+	@echo "→ uploading binary + install scripts to $$DROPLET_USER@$$DROPLET_IP"
+	scp -q $(BIN_DIR)/mfpoc-linux-amd64 \
+	    deploy/droplet/install.sh \
+	    deploy/droplet/mfpoc.service \
+	    deploy/droplet/config.droplet.yaml \
+	    $$DROPLET_USER@$$DROPLET_IP:/tmp/
+	@echo "→ running install.sh on $$DROPLET_IP"
+	ssh -t $$DROPLET_USER@$$DROPLET_IP "sudo bash /tmp/install.sh"
+
+# Alias - functionally identical to deploy-droplet, but documents the upgrade
+# semantic for operators who want to be explicit.
+.PHONY: redeploy-droplet
+redeploy-droplet: deploy-droplet
+
+# Print the current bearer token from a running droplet without redeploying.
+.PHONY: show-droplet-token
+show-droplet-token:
 	@test -n "$$DROPLET_IP" || (echo "DROPLET_IP is required" && exit 1)
 	@test -n "$$DROPLET_USER" || (echo "DROPLET_USER is required" && exit 1)
-	scp $(BIN_DIR)/mfpoc-linux-amd64 deploy/droplet/install.sh deploy/droplet/mfpoc.service deploy/droplet/config.droplet.yaml $$DROPLET_USER@$$DROPLET_IP:/tmp/
-	ssh $$DROPLET_USER@$$DROPLET_IP "sudo bash /tmp/install.sh"
+	@ssh $$DROPLET_USER@$$DROPLET_IP "sudo grep -E '^MFPOC_AUTH_BEARER_TOKEN=' /etc/mfpoc/mfpoc.env | cut -d= -f2-"
+
+# Tail logs from a running droplet.
+.PHONY: tail-droplet-logs
+tail-droplet-logs:
+	@test -n "$$DROPLET_IP" || (echo "DROPLET_IP is required" && exit 1)
+	@test -n "$$DROPLET_USER" || (echo "DROPLET_USER is required" && exit 1)
+	ssh -t $$DROPLET_USER@$$DROPLET_IP "sudo journalctl -u mfpoc -f"
 
 $(BIN_DIR):
 	mkdir -p $@
