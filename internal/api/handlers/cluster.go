@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"go.mongodb.org/mongo-driver/v2/bson"
 
 	"github.com/pagombin/fragmention-poc/internal/api/apiresp"
 	"github.com/pagombin/fragmention-poc/internal/collector"
@@ -158,4 +159,35 @@ func isSystemDB(name string) bool {
 		return true
 	}
 	return false
+}
+
+// RegisterClusterDiag attaches the /api/v1/cluster/diag endpoint that
+// returns the raw replSetGetStatus + hello payloads so the operator can see
+// exactly what the cluster returned. Useful when the topology view shows
+// an empty members list and we need to know if it's a permission problem,
+// a parsing problem, or a managed-cluster restriction. The endpoint is
+// read-only and only runs commands from a fixed allow-list.
+func RegisterClusterDiag(r chi.Router, d ClusterDeps) {
+	r.Get("/api/v1/cluster/diag", func(w http.ResponseWriter, req *http.Request) {
+		ctx, cancel := ctxWithTimeout(req.Context(), 10*time.Second)
+		defer cancel()
+
+		out := map[string]any{}
+
+		hello, err := d.Client.RawCommand(ctx, "admin", bson.D{{Key: "hello", Value: 1}})
+		if err != nil {
+			out["hello_error"] = err.Error()
+		} else {
+			out["hello"] = hello
+		}
+
+		status, err := d.Client.RawCommand(ctx, "admin", bson.D{{Key: "replSetGetStatus", Value: 1}})
+		if err != nil {
+			out["replSetGetStatus_error"] = err.Error()
+		} else {
+			out["replSetGetStatus"] = status
+		}
+
+		apiresp.WriteJSON(w, http.StatusOK, out)
+	})
 }

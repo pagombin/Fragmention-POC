@@ -98,6 +98,7 @@ func NewRouter(d Deps) http.Handler {
 	registerMetrics(r)
 	if d.Mongo != nil {
 		handlers.RegisterCluster(r, handlers.ClusterDeps{Client: d.Mongo, Collector: d.Collector})
+		handlers.RegisterClusterDiag(r, handlers.ClusterDeps{Client: d.Mongo, Collector: d.Collector})
 	}
 	if d.Store != nil {
 		ops := storage.NewOperations(d.Store)

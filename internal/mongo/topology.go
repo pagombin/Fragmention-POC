@@ -103,28 +103,55 @@ func (c *Client) DetectTopology(ctx context.Context) (Topology, error) {
 		top.Primary = primary
 	}
 
-	var status bson.M
-	if err := admin.RunCommand(ctx, bson.D{{Key: "replSetGetStatus", Value: 1}}).Decode(&status); err != nil {
+	// Decode replSetGetStatus into a typed struct. This avoids the fragile
+	// interface{} assertions a `bson.M` decode would force - if the driver
+	// returns a different concrete type for the inner array, our assertions
+	// previously silently failed and we ended up with an empty members
+	// slice even though the user's permissions were fine.
+	type rsMember struct {
+		ID             int32     `bson:"_id"`
+		Name           string    `bson:"name"`
+		StateStr       string    `bson:"stateStr"`
+		Health         float64   `bson:"health"`
+		Self           bool      `bson:"self"`
+		OptimeDate     time.Time `bson:"optimeDate"`
+		SyncSourceHost string    `bson:"syncSourceHost"`
+	}
+	type rsStatus struct {
+		Members []rsMember `bson:"members"`
+		Set     string     `bson:"set"`
+		MyState int        `bson:"myState"`
+	}
+	var status rsStatus
+	cmd := bson.D{{Key: "replSetGetStatus", Value: 1}}
+	if err := admin.RunCommand(ctx, cmd).Decode(&status); err != nil {
 		// Managed clusters (Atlas free tier, DigitalOcean managed)
 		// restrict replSetGetStatus to roles the application user
 		// often doesn't have. Fall back to the host list `hello`
 		// returns - we lose lag/optime/health detail but keep names
 		// and primary identification so the UI is useful.
 		top.Members = membersFromHello(hello, top.Primary)
-		// Don't propagate the error: the caller would otherwise treat
-		// this as a topology failure and the dashboard would show
-		// "disconnected" against a perfectly working cluster.
 		return top, nil
 	}
 
-	members, _ := status["members"].(bson.A)
+	if len(status.Members) == 0 {
+		// Server allowed the command but returned no members. This is
+		// abnormal; fall back so we still render something.
+		top.Members = membersFromHello(hello, top.Primary)
+		return top, nil
+	}
+
 	var primaryOptime time.Time
-	for _, raw := range members {
-		m, ok := raw.(bson.M)
-		if !ok {
-			continue
+	for _, m := range status.Members {
+		mem := Member{
+			ID:        int(m.ID),
+			Name:      m.Name,
+			State:     m.StateStr,
+			Health:    m.Health,
+			Self:      m.Self,
+			Optime:    m.OptimeDate.UTC(),
+			SyncingTo: m.SyncSourceHost,
 		}
-		mem := memberFromStatus(m)
 		if strings.EqualFold(mem.State, "PRIMARY") {
 			primaryOptime = mem.Optime
 		}
@@ -174,33 +201,6 @@ func membersFromHello(hello bson.M, primary string) []Member {
 		})
 	}
 	return out
-}
-
-func memberFromStatus(m bson.M) Member {
-	mem := Member{
-		Name:   asString(m["name"]),
-		State:  asString(m["stateStr"]),
-		Health: asFloat(m["health"]),
-	}
-	if v, ok := m["_id"].(int32); ok {
-		mem.ID = int(v)
-	} else if v, ok := m["_id"].(int64); ok {
-		mem.ID = int(v)
-	}
-	if v, ok := m["self"].(bool); ok {
-		mem.Self = v
-	}
-	if v, ok := m["syncSourceHost"].(string); ok {
-		mem.SyncingTo = v
-	} else if v, ok := m["syncingTo"].(string); ok {
-		mem.SyncingTo = v
-	}
-	if ot, ok := m["optimeDate"].(bson.DateTime); ok {
-		mem.Optime = ot.Time().UTC()
-	} else if ot, ok := m["optimeDate"].(time.Time); ok {
-		mem.Optime = ot.UTC()
-	}
-	return mem
 }
 
 func asFloat(v any) float64 {

@@ -107,6 +107,19 @@ func (c *Client) Close(ctx context.Context) error {
 	return c.raw.Disconnect(ctx)
 }
 
+// RawCommand runs an arbitrary admin command and returns the decoded
+// document. Used by the /api/v1/cluster/diag endpoint so operators can see
+// exactly what their cluster returned for `hello`, `replSetGetStatus`, etc.
+// Restricted to a small allow-list at the handler layer; the function
+// itself does not filter.
+func (c *Client) RawCommand(ctx context.Context, db string, cmd bson.D) (map[string]any, error) {
+	var out bson.M
+	if err := c.raw.Database(db).RunCommand(ctx, cmd).Decode(&out); err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
 // Raw returns the underlying driver client. Reserved for advanced callers
 // (integration tests); production code should use the typed helpers.
 func (c *Client) Raw() *mongo.Client { return c.raw }

@@ -70,10 +70,7 @@ frontend-build:
 
 .PHONY: frontend-embed
 frontend-embed:
-	@if [ ! -f web/dist/index.html ]; then \
-		echo "building frontend..."; \
-		cd web && npm install --silent && npm run build; cd ..; \
-	fi
+	@cd web && npm install --silent && npm run build
 	@rm -rf internal/api/webui/dist
 	@mkdir -p internal/api/webui/dist
 	@cp -r web/dist/. internal/api/webui/dist/
