@@ -92,48 +92,52 @@ export function SnapshotsTab() {
                   <div>A · <Badge>{compare.data.a.label}</Badge> · {new Date(compare.data.a.taken_at).toLocaleString()}</div>
                   <div>B · <Badge>{compare.data.b.label}</Badge> · {new Date(compare.data.b.taken_at).toLocaleString()}</div>
                 </div>
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
                   <div>
                     <h4 className="text-xs uppercase text-slate-500 mb-1">Databases</h4>
-                    <Table>
-                      <thead><tr><Th>Name</Th><Th className="text-right">Storage Δ</Th><Th className="text-right">Data Δ</Th></tr></thead>
-                      <tbody>
-                        {compare.data.diff.databases?.map((d) => (
-                          <tr key={d.name}>
-                            <Td className="font-mono text-xs">{d.name}</Td>
-                            <Td className="text-right font-mono">{formatBytes(d.storage_delta)}</Td>
-                            <Td className="text-right font-mono">{formatBytes(d.data_delta)}</Td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </Table>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <thead><tr><Th>Name</Th><Th className="text-right" title="storage_size delta (B - A); negative = reclaimed">Storage Δ</Th><Th className="text-right" title="data_size delta (B - A)">Data Δ</Th></tr></thead>
+                        <tbody>
+                          {(compare.data.diff.databases ?? []).map((d) => (
+                            <tr key={d.name}>
+                              <Td className="font-mono text-xs">{d.name}</Td>
+                              <Td className="text-right font-mono whitespace-nowrap">{formatBytes(d.storage_delta)}</Td>
+                              <Td className="text-right font-mono whitespace-nowrap">{formatBytes(d.data_delta)}</Td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    </div>
                   </div>
                   <div>
                     <h4 className="text-xs uppercase text-slate-500 mb-1">Collections</h4>
-                    <Table>
-                      <thead>
-                        <tr>
-                          <Th>Scope</Th>
-                          <Th className="text-right">Storage Δ</Th>
-                          <Th className="text-right">Free Δ</Th>
-                          <Th className="text-right">Count Δ</Th>
-                          <Th className="text-right">Frag before → after</Th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {compare.data.diff.collections?.map((c) => (
-                          <tr key={`${c.database}.${c.collection}`}>
-                            <Td className="font-mono text-xs">{c.database}.{c.collection}</Td>
-                            <Td className="text-right font-mono">{formatBytes(c.storage_delta)}</Td>
-                            <Td className="text-right font-mono">{formatBytes(c.free_storage_delta)}</Td>
-                            <Td className="text-right font-mono">{formatNumber(c.count_delta)}</Td>
-                            <Td className="text-right font-mono text-xs">
-                              {(c.fragmentation_before * 100).toFixed(1)}% → {(c.fragmentation_after * 100).toFixed(1)}%
-                            </Td>
+                    <div className="overflow-x-auto">
+                      <Table>
+                        <thead>
+                          <tr>
+                            <Th>Scope</Th>
+                            <Th className="text-right">Storage Δ</Th>
+                            <Th className="text-right" title="freeStorageSize delta">Free Δ</Th>
+                            <Th className="text-right" title="Document count delta">Count Δ</Th>
+                            <Th className="text-right">Frag before → after</Th>
                           </tr>
-                        ))}
-                      </tbody>
-                    </Table>
+                        </thead>
+                        <tbody>
+                          {(compare.data.diff.collections ?? []).map((c) => (
+                            <tr key={`${c.database}.${c.collection}`}>
+                              <Td className="font-mono text-xs whitespace-nowrap">{c.database}.{c.collection}</Td>
+                              <Td className="text-right font-mono whitespace-nowrap">{formatBytes(c.storage_delta)}</Td>
+                              <Td className="text-right font-mono whitespace-nowrap">{formatBytes(c.free_storage_delta)}</Td>
+                              <Td className="text-right font-mono whitespace-nowrap">{formatNumber(c.count_delta)}</Td>
+                              <Td className="text-right font-mono text-xs whitespace-nowrap">
+                                {(c.fragmentation_before * 100).toFixed(1)}% → {(c.fragmentation_after * 100).toFixed(1)}%
+                              </Td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </Table>
+                    </div>
                   </div>
                 </div>
               </>

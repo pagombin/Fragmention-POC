@@ -68,8 +68,8 @@ export function CompactTab() {
   };
 
   return (
-    <div className="grid grid-cols-1 xl:grid-cols-[2fr_3fr] gap-4">
-      {kind === 'collections' ? <TargetSelector /> : <Card><CardBody className="text-sm text-slate-500">Scope is {kind}; target selector is not used.</CardBody></Card>}
+    <div className={cx('grid grid-cols-1 gap-4', kind === 'collections' && 'xl:grid-cols-[2fr_3fr]')}>
+      {kind === 'collections' && <TargetSelector />}
 
       <div className="space-y-4">
         <Card>

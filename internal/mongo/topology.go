@@ -69,6 +69,23 @@ func (c *Client) DetectTopology(ctx context.Context) (Topology, error) {
 	if msg, _ := hello["msg"].(string); strings.EqualFold(msg, "isdbgrid") {
 		top.Kind = TopologyUnknown
 		top.Sharded = true
+		// Best-effort: enumerate shards via listShards. Managed sharded
+		// clusters often restrict this; tolerate failure.
+		if _, err := c.raw.Database("admin").ListCollections(ctx, bson.M{}); err == nil {
+			var ls bson.M
+			if err := admin.RunCommand(ctx, bson.D{{Key: "listShards", Value: 1}}).Decode(&ls); err == nil {
+				if shards, ok := ls["shards"].(bson.A); ok {
+					for _, s := range shards {
+						sm, _ := s.(bson.M)
+						top.Members = append(top.Members, Member{
+							Name:   asString(sm["host"]),
+							State:  "SHARD:" + asString(sm["_id"]),
+							Health: 1,
+						})
+					}
+				}
+			}
+		}
 		return top, nil
 	}
 
@@ -88,8 +105,16 @@ func (c *Client) DetectTopology(ctx context.Context) (Topology, error) {
 
 	var status bson.M
 	if err := admin.RunCommand(ctx, bson.D{{Key: "replSetGetStatus", Value: 1}}).Decode(&status); err != nil {
-		// Still return the minimal topology; the caller can choose to continue.
-		return top, fmt.Errorf("replSetGetStatus: %w", err)
+		// Managed clusters (Atlas free tier, DigitalOcean managed)
+		// restrict replSetGetStatus to roles the application user
+		// often doesn't have. Fall back to the host list `hello`
+		// returns - we lose lag/optime/health detail but keep names
+		// and primary identification so the UI is useful.
+		top.Members = membersFromHello(hello, top.Primary)
+		// Don't propagate the error: the caller would otherwise treat
+		// this as a topology failure and the dashboard would show
+		// "disconnected" against a perfectly working cluster.
+		return top, nil
 	}
 
 	members, _ := status["members"].(bson.A)
@@ -122,6 +147,33 @@ func (c *Client) DetectTopology(ctx context.Context) (Topology, error) {
 	}
 	top.MaxReplicaLag = maxLag
 	return top, nil
+}
+
+// membersFromHello derives a minimal member list from `hello` output when
+// `replSetGetStatus` is restricted (managed clusters). Health and optime
+// are not available; we synthesise PRIMARY / SECONDARY based on
+// hello.primary and hello.me.
+func membersFromHello(hello bson.M, primary string) []Member {
+	hosts, _ := hello["hosts"].(bson.A)
+	if len(hosts) == 0 {
+		return []Member{}
+	}
+	me, _ := hello["me"].(string)
+	out := make([]Member, 0, len(hosts))
+	for _, h := range hosts {
+		name, _ := h.(string)
+		state := "SECONDARY"
+		if name == primary {
+			state = "PRIMARY"
+		}
+		out = append(out, Member{
+			Name:   name,
+			State:  state,
+			Health: 1,
+			Self:   name == me,
+		})
+	}
+	return out
 }
 
 func memberFromStatus(m bson.M) Member {

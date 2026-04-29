@@ -65,7 +65,7 @@ export function LoadTab() {
           <CardHeader><CardTitle>Load configuration</CardTitle></CardHeader>
           <CardBody>
             <div className="grid grid-cols-2 gap-3">
-              <div>
+              <div title="The loader stops inserting into a collection once it has written approximately this many BSON-encoded bytes. Multiplied across all selected collections.">
                 <Label>Bytes target per collection</Label>
                 <div className="flex gap-1">
                   <Input type="number" value={bytesPer} onChange={(e) => setBytesPer(e.target.value)} className="flex-1" />
@@ -78,22 +78,22 @@ export function LoadTab() {
                 </div>
               </div>
 
-              <div>
+              <div title="Number of concurrent goroutines pushing batches. Higher = faster fill, more cluster load.">
                 <Label>Workers</Label>
                 <Input type="number" min={1} value={workers} onChange={(e) => setWorkers(Math.max(1, Number(e.target.value)))} />
               </div>
 
-              <div>
+              <div title="Number of documents per InsertMany call. Larger batches are more efficient but use more memory and longer per-batch round-trips.">
                 <Label>Batch size</Label>
                 <Input type="number" min={1} value={batchSize} onChange={(e) => setBatchSize(Math.max(1, Number(e.target.value)))} />
               </div>
 
-              <div>
+              <div title="Total documents per second across all workers. Set 0 to let workers run as fast as the cluster allows.">
                 <Label>Docs/sec rate limit (0 = unlimited)</Label>
                 <Input type="number" min={0} value={docsPerSec} onChange={(e) => setDocsPerSec(Math.max(0, Number(e.target.value)))} />
               </div>
 
-              <div className="col-span-2 flex items-center gap-2">
+              <div className="col-span-2 flex items-center gap-2" title="Bypass the headroom check that refuses a load when free disk < target × (1+headroom). Useful on managed clusters where fsTotalSize isn't reported.">
                 <input id="force" type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} />
                 <label htmlFor="force" className="text-sm">Skip pre-flight storage check (force start)</label>
               </div>

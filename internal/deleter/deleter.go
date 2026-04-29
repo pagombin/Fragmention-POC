@@ -22,6 +22,7 @@ import (
 	"github.com/pagombin/fragmention-poc/internal/collector"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
 	"github.com/pagombin/fragmention-poc/internal/opevents"
+	"github.com/pagombin/fragmention-poc/internal/retry"
 	"github.com/pagombin/fragmention-poc/internal/storage"
 )
 
@@ -280,19 +281,28 @@ func (d *Deleter) deleteFromCandidates(ctx context.Context, t Target, coll *mong
 		}
 		batch := candidates[offset:end]
 		start := time.Now()
-		res, err := coll.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": batch}})
+		var res *mongo.DeleteResult
+		err := retry.Do(ctx, retry.Default(), nil, func(ctx context.Context, attempt int) error {
+			r, e := coll.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": batch}})
+			if e != nil {
+				if attempt > 0 {
+					Errors.WithLabelValues("delete_many_retry").Inc()
+				}
+				return e
+			}
+			res = r
+			return nil
+		})
 		dur := time.Since(start)
 		BatchDuration.WithLabelValues(t.Database, t.Collection, string(pattern.Name())).Observe(dur.Seconds())
 		if err != nil {
 			d.batchesKO.Add(1)
 			Errors.WithLabelValues("delete_many").Inc()
-			d.logger.Warn().Err(err).Str("target", t.Key()).Msg("delete batch failed")
-			// brief backoff then continue
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(200 * time.Millisecond):
-			}
+			d.logger.Warn().Err(err).Str("target", t.Key()).Msg("delete batch failed (after retries)")
+			// Skip this batch and advance the offset so we don't loop
+			// forever on a chronically-bad chunk.
+			offset = end
+			_ = d.saveCandidateOffset(ctx, t.Key(), offset)
 			continue
 		}
 		d.batchesOK.Add(1)
@@ -379,13 +389,26 @@ func (d *Deleter) filterIteration(ctx context.Context, t Target, coll *mongo.Col
 		return errNoMore
 	}
 	start := time.Now()
-	res, err := coll.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": batchIDs}})
+	var res *mongo.DeleteResult
+	err = retry.Do(ctx, retry.Default(), nil, func(ctx context.Context, attempt int) error {
+		r, e := coll.DeleteMany(ctx, bson.M{"_id": bson.M{"$in": batchIDs}})
+		if e != nil {
+			if attempt > 0 {
+				Errors.WithLabelValues("delete_many_retry").Inc()
+			}
+			return e
+		}
+		res = r
+		return nil
+	})
 	BatchDuration.WithLabelValues(t.Database, t.Collection, string(pattern.Name())).Observe(time.Since(start).Seconds())
 	if err != nil {
 		d.batchesKO.Add(1)
 		Errors.WithLabelValues("delete_many").Inc()
-		d.logger.Warn().Err(err).Str("target", t.Key()).Msg("delete batch failed")
-		return sleepOrCancel(ctx, 200*time.Millisecond)
+		d.logger.Warn().Err(err).Str("target", t.Key()).Msg("delete batch failed (after retries)")
+		// Skip this iteration and let the caller move on; otherwise a
+		// chronically-bad batch would loop forever.
+		return nil
 	}
 	d.batchesOK.Add(1)
 	d.deleted.Add(res.DeletedCount)

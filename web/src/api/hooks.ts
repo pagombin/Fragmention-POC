@@ -36,6 +36,33 @@ export function useCollections(db: string | null) {
   });
 }
 
+export function useDropDatabase() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (db: string) =>
+      api<{ dropped: string }>(`/api/v1/cluster/databases/${encodeURIComponent(db)}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cluster', 'databases'] });
+      qc.invalidateQueries({ queryKey: ['cluster', 'collections'] });
+    },
+  });
+}
+
+export function useDropCollection() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ database, collection }: { database: string; collection: string }) =>
+      api<{ dropped: string }>(
+        `/api/v1/cluster/databases/${encodeURIComponent(database)}/collections/${encodeURIComponent(collection)}`,
+        { method: 'DELETE' },
+      ),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['cluster', 'databases'] });
+      qc.invalidateQueries({ queryKey: ['cluster', 'collections'] });
+    },
+  });
+}
+
 /* ---- loader ---- */
 
 export function useActiveLoaders() {

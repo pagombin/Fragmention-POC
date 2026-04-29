@@ -33,7 +33,11 @@ export function RunDetail() {
         <CardHeader><CardTitle>Cluster fragmentation</CardTitle></CardHeader>
         <CardBody style={{ height: 260 }}>
           {chartData.length === 0 ? (
-            <div className="text-sm text-slate-500">No samples associated with this run yet.</div>
+            <div className="text-sm text-slate-500">
+              No samples are tagged with this run_id yet. Samples are tagged when an operation
+              (load / delete / compact / workload) is started <em>with the run_id</em> via the
+              Operations Console. Until then, the run is just a configuration record.
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={chartData}>

@@ -25,6 +25,7 @@ import (
 	"github.com/pagombin/fragmention-poc/internal/generator"
 	mongoClient "github.com/pagombin/fragmention-poc/internal/mongo"
 	"github.com/pagombin/fragmention-poc/internal/opevents"
+	"github.com/pagombin/fragmention-poc/internal/retry"
 	"github.com/pagombin/fragmention-poc/internal/storage"
 )
 
@@ -437,27 +438,28 @@ func (l *Loader) workerLoop(
 		start := time.Now()
 		coll := l.mc.Raw().Database(t.Database).Collection(t.Collection)
 		insertOpts := options.InsertMany().SetOrdered(false)
-		ctxIns := ctx
-		if wc != nil {
-			// The driver's v2 API applies write concern per-database via
-			// DatabaseOptions; the simpler path is to leave the client's
-			// default and accept the override at the connection string
-			// level. Per-op write concern is a future enhancement.
-			_ = wc
-		}
-		_, err := coll.InsertMany(ctxIns, docs, insertOpts)
+		_ = wc // per-op write concern is a future enhancement; URI-level WC applies.
+
+		// Retry transient errors (managed cluster timeouts, primary
+		// stepdown, network blips) up to 20 times with exponential
+		// backoff. Persistent failures (auth, config) propagate after
+		// the budget is exhausted so the operator sees the real error.
+		err := retry.Do(ctx, retry.Default(), nil, func(ctx context.Context, attempt int) error {
+			_, e := coll.InsertMany(ctx, docs, insertOpts)
+			if e != nil && attempt > 0 {
+				Errors.WithLabelValues("insert_retry").Inc()
+				l.logger.Debug().Int("attempt", attempt).Err(e).Str("target", t.Key()).Msg("batch insert retry")
+			}
+			return e
+		})
 		dur := time.Since(start)
 		BatchDuration.WithLabelValues(t.Database, t.Collection).Observe(dur.Seconds())
 		if err != nil {
 			l.stats.batchesKO.Add(1)
 			Errors.WithLabelValues("insert").Inc()
-			l.logger.Warn().Err(err).Str("target", t.Key()).Msg("batch insert failed")
-			// Non-fatal: a noisy primary election, etc. Sleep briefly and retry.
-			select {
-			case <-ctx.Done():
-				return ctx.Err()
-			case <-time.After(250 * time.Millisecond):
-			}
+			l.logger.Warn().Err(err).Str("target", t.Key()).Msg("batch insert failed (after retries)")
+			// Move on to the next batch - a single chronically-failing
+			// batch must not stall the whole loader.
 			continue
 		}
 

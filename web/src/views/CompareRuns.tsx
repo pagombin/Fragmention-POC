@@ -31,19 +31,33 @@ export function CompareRuns() {
       <Card>
         <CardHeader><CardTitle>Runs</CardTitle></CardHeader>
         <CardBody>
+          {(runs.data?.length ?? 0) < 2 && (
+            <div className="mb-3 rounded border border-yellow-500 bg-yellow-50 p-2 text-xs text-yellow-900 dark:bg-yellow-900/30 dark:text-yellow-100">
+              You need at least two runs to compare. Create one from the New Run Wizard.
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <div className="text-xs uppercase text-slate-500 mb-1">Run A</div>
-              <Select value={a} onChange={(e) => setA(e.target.value)}>
+              <div className="text-xs uppercase text-slate-500 mb-1" title="The 'reference' run for the comparison">Run A</div>
+              <Select value={a} onChange={(e) => setA(e.target.value)} disabled={(runs.data?.length ?? 0) === 0}>
                 <option value="">—</option>
-                {runs.data?.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {runs.data?.filter((r) => r.id !== b).map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
               </Select>
             </div>
             <div>
-              <div className="text-xs uppercase text-slate-500 mb-1">Run B</div>
-              <Select value={b} onChange={(e) => setB(e.target.value)}>
+              <div className="text-xs uppercase text-slate-500 mb-1" title="The run to compare against A">Run B</div>
+              <Select
+                value={b}
+                onChange={(e) => setB(e.target.value)}
+                disabled={!a || (runs.data?.filter((r) => r.id !== a).length ?? 0) === 0}
+                title={!a ? 'Select Run A first' : undefined}
+              >
                 <option value="">—</option>
-                {runs.data?.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                {runs.data?.filter((r) => r.id !== a).map((r) => (
+                  <option key={r.id} value={r.id}>{r.name}</option>
+                ))}
               </Select>
             </div>
           </div>

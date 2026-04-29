@@ -114,5 +114,48 @@ func RegisterCluster(r chi.Router, d ClusterDeps) {
 			}
 			apiresp.WriteJSON(w, http.StatusOK, stats)
 		})
+
+		cr.Delete("/databases/{db}", func(w http.ResponseWriter, req *http.Request) {
+			dbName := chi.URLParam(req, "db")
+			if isSystemDB(dbName) {
+				apiresp.WriteError(w, http.StatusForbidden, "system_db",
+					"refusing to drop system database "+dbName, nil)
+				return
+			}
+			ctx, cancel := ctxWithTimeout(req.Context(), 30*time.Second)
+			defer cancel()
+			if err := d.Client.Raw().Database(dbName).Drop(ctx); err != nil {
+				apiresp.WriteError(w, http.StatusBadGateway, "drop_failed", err.Error(), nil)
+				return
+			}
+			apiresp.WriteJSON(w, http.StatusOK, map[string]any{"dropped": dbName})
+		})
+
+		cr.Delete("/databases/{db}/collections/{coll}", func(w http.ResponseWriter, req *http.Request) {
+			dbName := chi.URLParam(req, "db")
+			coll := chi.URLParam(req, "coll")
+			if isSystemDB(dbName) {
+				apiresp.WriteError(w, http.StatusForbidden, "system_db",
+					"refusing to drop collection in system database "+dbName, nil)
+				return
+			}
+			ctx, cancel := ctxWithTimeout(req.Context(), 30*time.Second)
+			defer cancel()
+			if err := d.Client.Raw().Database(dbName).Collection(coll).Drop(ctx); err != nil {
+				apiresp.WriteError(w, http.StatusBadGateway, "drop_failed", err.Error(), nil)
+				return
+			}
+			apiresp.WriteJSON(w, http.StatusOK, map[string]any{"dropped": dbName + "." + coll})
+		})
 	})
+}
+
+// isSystemDB protects admin/config/local from destructive endpoints.
+// Spec § 21.5 / § 5.4 require these never be touched by user-driven flows.
+func isSystemDB(name string) bool {
+	switch name {
+	case "admin", "config", "local":
+		return true
+	}
+	return false
 }
