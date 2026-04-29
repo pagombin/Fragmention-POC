@@ -34,10 +34,15 @@ func (UserProfile) Name() string { return "user_profile" }
 func (UserProfile) IDKind() IDKind { return IDKindObjectID }
 
 // IndexSpecs implements Template.
+//
+// Note: gofakeit's email pool is finite, so a UNIQUE index on email
+// would reject batches as soon as duplicates are sampled. The index here
+// is non-unique; the POC exercises WiredTiger's index storage behavior,
+// not application-level uniqueness invariants.
 func (UserProfile) IndexSpecs() []IndexSpec {
 	return []IndexSpec{
 		{Name: "idx_created_at", Keys: map[string]int{"created_at": 1}},
-		{Name: "idx_email_unique", Keys: map[string]int{"email": 1}, Unique: true},
+		{Name: "idx_email", Keys: map[string]int{"email": 1}},
 		{Name: "idx_country_lastname", Keys: map[string]int{"address.country": 1, "last_name": 1}},
 	}
 }

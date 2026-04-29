@@ -279,31 +279,36 @@ func (l *Loader) Run(ctx context.Context) error {
 	return l.finalize(ctx, final, "")
 }
 
-// ensureIndexes creates the spec-mandated indexes on each target using the
-// template registered in DefaultTemplates. When the collection already
-// exists with these indexes, the driver is idempotent.
+// ensureIndexes creates a set of universally-applicable indexes on each
+// target so loads incur realistic index-maintenance cost without forcing a
+// per-collection template choice. The two indexes here are guaranteed to
+// match every template in DefaultTemplates() because every generator emits
+// `created_at` and `_load_run_id` (see internal/generator.defaultCommonFields).
+//
+// Per-template index specs (e.g. UserProfile's unique-email or Order's
+// customer-status compound) are intentionally NOT applied across the board:
+// since the registry picks templates at random per document, applying
+// UserProfile's unique-email index to a collection that mostly receives
+// EventLog/Telemetry/Telemetry docs causes every batch to fail on
+// `email: null` collisions. The per-template IndexSpecs metadata is still
+// available for future "single-template-per-collection" loads.
 func (l *Loader) ensureIndexes(ctx context.Context) error {
-	tpls, _ := generator.DefaultTemplates()
-	// Use the first template's index set as a baseline for every target
-	// (caller can opt into per-template customization in a later phase).
-	// We still run the full set of templates during generation for mix.
-	specs := tpls[0].IndexSpecs()
+	universal := []generator.IndexSpec{
+		{Name: "idx_created_at", Keys: map[string]int{"created_at": 1}},
+		{Name: "idx_load_run_id", Keys: map[string]int{"_load_run_id": 1}},
+	}
 	for _, t := range l.spec.Entries {
 		coll := l.mc.Raw().Database(t.Database).Collection(t.Collection)
-		models := make([]mongo.IndexModel, 0, len(specs))
-		for _, s := range specs {
+		models := make([]mongo.IndexModel, 0, len(universal))
+		for _, s := range universal {
 			keys := bson.D{}
 			for k, v := range s.Keys {
 				keys = append(keys, bson.E{Key: k, Value: v})
 			}
-			opt := options.Index().SetName(s.Name)
-			if s.Unique {
-				opt = opt.SetUnique(true)
-			}
-			if s.Sparse {
-				opt = opt.SetSparse(true)
-			}
-			models = append(models, mongo.IndexModel{Keys: keys, Options: opt})
+			models = append(models, mongo.IndexModel{
+				Keys:    keys,
+				Options: options.Index().SetName(s.Name),
+			})
 		}
 		if _, err := coll.Indexes().CreateMany(ctx, models); err != nil {
 			l.logger.Warn().Err(err).Str("target", t.Key()).Msg("index create failed; continuing")
